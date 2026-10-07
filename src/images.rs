@@ -72,6 +72,26 @@ impl ArtLoader {
         self.inner.fetch(url).await
     }
 
+    /// Fetches `url` on the loader's runtime and hands the bytes, or `None`
+    /// when they could not be had, to `done` on a blocking thread, where it
+    /// can decode them without holding up the runtime.
+    pub fn spawn_fetch(
+        &self,
+        url: String,
+        done: impl FnOnce(String, Option<Arc<[u8]>>) + Send + 'static,
+    ) {
+        let inner = Arc::clone(&self.inner);
+        self.inner.runtime.spawn(async move {
+            let bytes = inner.fetch(&url).await.ok();
+            let _ = inner.runtime.spawn_blocking(move || done(url, bytes)).await;
+        });
+    }
+
+    /// Runs `work` on the loader runtime's blocking threads.
+    pub fn spawn_blocking(&self, work: impl FnOnce() + Send + 'static) {
+        self.inner.runtime.spawn_blocking(work);
+    }
+
     /// Whether artwork has finished loading from disk or the network.
     pub fn is_ready(&self, url: &str) -> bool {
         matches!(

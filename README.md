@@ -135,8 +135,10 @@ is Spotifast's sibling. Both are built on
 ## Acknowledgements
 
 Spotifast uses [librespot](https://github.com/librespot-org/librespot),
-[egui](https://github.com/emilk/egui), the [Inter](https://rsms.me/inter/)
-typeface (OFL), and [Lucide](https://lucide.dev) icons (ISC).
+[egui](https://github.com/emilk/egui), the [Geist](https://vercel.com/font)
+and [Inter](https://rsms.me/inter/) typefaces (OFL), and
+[Lucide](https://lucide.dev) icons (ISC). Its look, including the dithered
+page headers, follows [Zeron](https://github.com/zeronsh/zeron).
 
 Spotifast is an independent project and is not affiliated with Spotify.
 Spotify is a trademark of Spotify AB.

@@ -39,7 +39,7 @@ cannot play music through Spotifast on this computer or another device.
   the system tray. Use your keyboard's media keys to play, pause, and skip.
 - **Themes.** Choose light, dark, or your own colours. On Omarchy, Spotifast
   can follow your desktop theme automatically. Pages can also take a colour
-  from album art.
+  from album art, and draw the cover behind their title as dithered dots.
 
 <a id="account-safety"></a>
 

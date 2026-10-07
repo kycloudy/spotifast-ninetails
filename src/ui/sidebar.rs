@@ -941,7 +941,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 let heading = gettext(locale, "Library");
                 let room = ui.available_width() - 6.0;
-                let fits = [15.0, 14.0, 13.0].into_iter().find(|&size| {
+                let fits = [15.0, 14.0, 13.0, 12.0].into_iter().find(|&size| {
                     ui.painter()
                         .layout_no_wrap(heading.to_string(), theme::bold(size), palette.text)
                         .size()

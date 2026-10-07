@@ -412,6 +412,7 @@ pub struct App {
     lyrics_restore_maximized: bool,
     pub lyrics_backdrop: crate::images::LyricsBackdrop,
     pub softened_covers: crate::images::SoftenedCovers,
+    pub dither_hero: crate::dither::DitherHero,
     /// The track the lyrics below are for.
     pub lyrics_uri: Option<String>,
     /// `Loaded(None)` when no lyrics are available.
@@ -863,6 +864,7 @@ impl App {
             lyrics_restore_maximized: false,
             lyrics_backdrop: Default::default(),
             softened_covers: Default::default(),
+            dither_hero: Default::default(),
             lyrics_uri: None,
             lyrics: Loadable::NotLoaded,
             lyrics_following: true,
