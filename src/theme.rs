@@ -83,6 +83,26 @@ impl Palette {
         }
     }
 
+    /// Zeron's solid control: the play buttons are drawn in the text colour
+    /// with the page's colour on them, so the accent is kept for state.
+    pub fn solid(&self) -> Color32 {
+        self.text
+    }
+
+    /// [`Self::solid`] under the pointer.
+    pub fn solid_hover(&self) -> Color32 {
+        if self.dark {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        }
+    }
+
+    /// The glyph on a [`Self::solid`] control.
+    pub fn on_solid(&self) -> Color32 {
+        self.window
+    }
+
     /// A colour derived from album art, softened so it can sit behind text.
     pub fn tint_from_art(&self, rgb: [u8; 3]) -> Color32 {
         let [r, g, b] = rgb.map(|c| c as f32 / 255.0);
@@ -200,7 +220,7 @@ pub const PLAYER_BAR_HEIGHT: f32 = 88.0;
 /// take the same edge and swap places there, so a width that suits one
 /// has to suit the other, or the window would jump on the swap.
 pub const SIDE_PANEL_MIN_WIDTH: f32 = 280.0;
-pub const TOP_BAR_HEIGHT: f32 = 56.0;
+pub const TOP_BAR_HEIGHT: f32 = 44.0;
 
 /// macOS hides the titlebar and draws the window content all the way to the
 /// top edge, so whatever sits at the top of the window has to leave room for
@@ -753,12 +773,12 @@ fn soft_button_inner(
     active: bool,
     dismissible: bool,
 ) -> (Response, bool) {
-    let font = medium(13.0);
+    let font = medium(12.5);
     let color = if active { palette.window } else { palette.text };
     let galley = crate::bidi::layout_line(ui.painter(), label, font, color);
-    let icon_size = 15.0;
+    let icon_size = 14.0;
     let icon_width = if icon.is_some() { icon_size + 6.0 } else { 0.0 };
-    let padding = Vec2::new(12.0, 7.0);
+    let padding = Vec2::new(10.0, 6.0);
     let size = Vec2::new(galley.size().x + icon_width, galley.size().y) + padding * 2.0;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(|| {
@@ -797,7 +817,9 @@ fn soft_button_inner(
         } else {
             palette.surface
         };
-        ui.painter().rect_filled(rect, rect.height() / 2.0, fill);
+        // Zeron's control corner rather than a full pill.
+        ui.painter()
+            .rect_filled(rect, f32::from(RADIUS_SMALL + 2), fill);
         let mut x = rect.left() + padding.x;
         if let Some(icon) = icon {
             let icon = if dismiss.is_some() && hovered {

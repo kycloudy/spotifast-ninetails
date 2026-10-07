@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Spotifast\n"
 "Report-Msgid-Bugs-To: https://github.com/crmne/spotifast/issues/new?"
 "template=translation.yml\n"
-"POT-Creation-Date: 2026-10-07 21:26+0000\n"
+"POT-Creation-Date: 2026-10-07 22:33+0000\n"
 "PO-Revision-Date: 2026-10-02 20:30+0300\n"
 "Last-Translator: Barış Berke Çetin <brsberkectn@gmail.com>\n"
 "Language-Team: Turkish\n"
@@ -29,13 +29,13 @@ msgid "Play {name}"
 msgstr "{name} çal"
 
 #: src/ui/sidebar.rs:300 src/app.rs:2405 src/app.rs:16324
-#: src/ui/collection.rs:1700 src/ui/collection.rs:1877
+#: src/ui/collection.rs:1707 src/ui/collection.rs:1884 src/ui/mod.rs:279
 msgid "Playlist"
 msgstr "Çalma Listesi"
 
 #: src/ui/sidebar.rs:310 src/app.rs:2379 src/app.rs:16329
-#: src/ui/collection.rs:1870 src/ui/home.rs:49 src/ui/keys.rs:258
-#: src/ui/winamp/playlist.rs:653
+#: src/ui/collection.rs:1877 src/ui/home.rs:322 src/ui/keys.rs:258
+#: src/ui/mod.rs:266 src/ui/winamp/playlist.rs:653
 msgid "Liked Songs"
 msgstr "Beğenilenler"
 
@@ -43,8 +43,8 @@ msgstr "Beğenilenler"
 msgid "Library order"
 msgstr "Kitaplık sıralaması"
 
-#: src/ui/sidebar.rs:353 src/ui/home.rs:293 src/ui/home.rs:303
-#: src/ui/home.rs:330
+#: src/ui/sidebar.rs:353 src/ui/home.rs:576 src/ui/home.rs:586
+#: src/ui/home.rs:613
 msgid "Recently played"
 msgstr "Son çalınanlar"
 
@@ -64,111 +64,113 @@ msgstr "Yerel özel sıralama"
 msgid "Spotify custom order"
 msgstr "Spotify özel sıralaması"
 
-#: src/ui/sidebar.rs:671
+#: src/ui/sidebar.rs:697
 msgid "Folder"
 msgstr "Klasör"
 
 #. Translators: {owner} is the name of the playlist's owner.
-#: src/ui/sidebar.rs:779 src/ui/search.rs:214
+#: src/ui/sidebar.rs:805 src/ui/search.rs:214
 #, rust-format
 msgid "Playlist • {owner}"
 msgstr "Çalma Listesi • {owner}"
 
-#: src/ui/sidebar.rs:835 src/i18n.rs:255 src/i18n.rs:258 src/ui/keys.rs:254
-#: src/ui/topbar.rs:243
-msgid "Home"
-msgstr "Ana Sayfa"
-
-#: src/ui/sidebar.rs:846 src/app.rs:5947 src/ui/keys.rs:245
+#: src/ui/sidebar.rs:869 src/app.rs:5947 src/ui/home.rs:142 src/ui/keys.rs:245
+#: src/ui/mod.rs:261
 msgid "Search"
 msgstr "Ara"
 
-#: src/ui/sidebar.rs:885
+#: src/ui/sidebar.rs:875 src/i18n.rs:255 src/i18n.rs:258 src/ui/keys.rs:254
+#: src/ui/mod.rs:260 src/ui/topbar.rs:339
+msgid "Home"
+msgstr "Ana Sayfa"
+
+#: src/ui/sidebar.rs:908
 msgid "Hide sidebar (Ctrl+B)"
 msgstr "Kenar çubuğunu gizle (Ctrl+B)"
 
-#: src/ui/sidebar.rs:886
+#: src/ui/sidebar.rs:909
 msgid "Hide sidebar (Cmd+B)"
 msgstr "Kenar çubuğunu gizle (Cmd+B)"
 
-#: src/ui/sidebar.rs:895
+#: src/ui/sidebar.rs:918
 msgid "Show as list"
 msgstr "Liste olarak göster"
 
-#: src/ui/sidebar.rs:897
+#: src/ui/sidebar.rs:920
 msgid "Show as grid"
 msgstr "Izgara olarak göster"
 
-#: src/ui/sidebar.rs:910
+#: src/ui/sidebar.rs:933
 msgid "Create a playlist"
 msgstr "Çalma listesi oluştur"
 
-#: src/ui/sidebar.rs:926
+#: src/ui/sidebar.rs:949
 msgid "Search Your Library"
 msgstr "Kitaplığında Ara"
 
-#: src/ui/sidebar.rs:942
+#: src/ui/sidebar.rs:965
 msgid "Library"
 msgstr "Kitaplık"
 
-#: src/ui/sidebar.rs:962 src/app.rs:5920 src/model.rs:636 src/ui/search.rs:647
+#: src/ui/sidebar.rs:986 src/app.rs:5920 src/model.rs:636 src/ui/search.rs:647
 msgid "Playlists"
 msgstr "Çalma Listeleri"
 
-#: src/ui/sidebar.rs:963 src/model.rs:635 src/model.rs:749 src/ui/library.rs:17
-#: src/ui/search.rs:575
+#: src/ui/sidebar.rs:987 src/model.rs:635 src/model.rs:749 src/ui/library.rs:17
+#: src/ui/mod.rs:267 src/ui/search.rs:575
 msgid "Albums"
 msgstr "Albümler"
 
-#: src/ui/sidebar.rs:964 src/model.rs:634 src/ui/library.rs:22
-#: src/ui/search.rs:508
+#: src/ui/sidebar.rs:988 src/model.rs:634 src/ui/library.rs:22
+#: src/ui/mod.rs:268 src/ui/search.rs:508
 msgid "Artists"
 msgstr "Sanatçılar"
 
-#: src/ui/sidebar.rs:965 src/model.rs:637 src/ui/library.rs:27
-#: src/ui/search.rs:697
+#: src/ui/sidebar.rs:989 src/model.rs:637 src/ui/library.rs:27
+#: src/ui/mod.rs:269 src/ui/search.rs:697
 msgid "Podcasts"
 msgstr "Podcast'ler"
 
-#: src/ui/sidebar.rs:986
+#: src/ui/sidebar.rs:1010
 msgid "Search in Your Library"
 msgstr "Kitaplığında ara"
 
-#: src/ui/sidebar.rs:1114 src/app.rs:2440 src/ui/artist.rs:203
-#: src/ui/artist.rs:311 src/ui/home.rs:563 src/ui/library.rs:100
-#: src/ui/search.rs:145 src/ui/search.rs:472 src/ui/winamp/playlist.rs:729
+#: src/ui/sidebar.rs:1138 src/app.rs:2440 src/ui/artist.rs:203
+#: src/ui/artist.rs:311 src/ui/home.rs:846 src/ui/library.rs:100
+#: src/ui/mod.rs:301 src/ui/search.rs:145 src/ui/search.rs:472
+#: src/ui/winamp/playlist.rs:729
 msgid "Artist"
 msgstr "Sanatçı"
 
 #. Translators: {publisher} is the podcast's publisher.
-#: src/ui/sidebar.rs:1150 src/ui/search.rs:239
+#: src/ui/sidebar.rs:1174 src/ui/search.rs:239
 #, rust-format
 msgid "Podcast • {publisher}"
 msgstr "Podcast • {publisher}"
 
-#: src/ui/sidebar.rs:1208
+#: src/ui/sidebar.rs:1232
 msgid "Nothing here yet."
 msgstr "Burada henüz bir şey yok."
 
-#: src/ui/sidebar.rs:1210
+#: src/ui/sidebar.rs:1234
 msgid "No matches."
 msgstr "Eşleşme bulunamadı."
 
-#: src/ui/sidebar.rs:1837
+#: src/ui/sidebar.rs:1864
 msgid "Sort by recently played"
 msgstr "Son çalınanlara göre sırala"
 
-#: src/ui/sidebar.rs:1858 src/ui/player_bar.rs:682 src/ui/widgets.rs:1000
-#: src/ui/artist.rs:341 src/ui/collection.rs:214 src/ui/search.rs:390
+#: src/ui/sidebar.rs:1885 src/ui/player_bar.rs:705 src/ui/widgets.rs:1000
+#: src/ui/artist.rs:341 src/ui/collection.rs:221 src/ui/search.rs:390
 #: src/ui/show.rs:311
 msgid "Play"
 msgstr "Çal"
 
-#: src/ui/sidebar.rs:1876
+#: src/ui/sidebar.rs:1903
 msgid "Unpin"
 msgstr "Sabitlemeyi kaldır"
 
-#: src/ui/sidebar.rs:1878
+#: src/ui/sidebar.rs:1905
 msgid "Pin to top"
 msgstr "Başa sabitle"
 
@@ -183,7 +185,7 @@ msgstr[1] "Çalma listesi • {count} şarkı"
 #. Translators: Keep {count} exactly as written. It becomes a number of songs.
 #. Translators: Keep {count} exactly as written. It becomes the number of selected songs.
 #. Translators: {count} is a number of songs.
-#: src/i18n.rs:189 src/ui/widgets.rs:566 src/ui/collection.rs:1964
+#: src/i18n.rs:189 src/ui/widgets.rs:566 src/ui/collection.rs:1971
 #, rust-format
 msgid "{count} song"
 msgid_plural "{count} songs"
@@ -216,85 +218,96 @@ msgstr "{name}, klasör, daraltılmış"
 msgid "{name}, folder, expanded"
 msgstr "{name}, klasör, genişletilmiş"
 
-#: src/ui/player_bar.rs:80
+#: src/ui/player_bar.rs:105
 msgid "Click to change the visualizer"
 msgstr "Görselleştiriciyi değiştirmek için tıklayın"
 
-#: src/ui/player_bar.rs:400 src/ui/lyrics.rs:131 src/ui/lyrics.rs:600
+#: src/ui/player_bar.rs:422 src/ui/lyrics.rs:131 src/ui/lyrics.rs:600
 msgid "Nothing playing"
 msgstr "Hiçbir şey çalmıyor"
 
-#: src/ui/player_bar.rs:406 src/app.rs:7229
+#: src/ui/player_bar.rs:428 src/app.rs:7229
 msgid "Pick a song, album, or playlist"
 msgstr "Bir şarkı, albüm veya çalma listesi seçin"
 
-#: src/ui/player_bar.rs:538 src/ui/widgets.rs:596 src/ui/widgets.rs:827
-#: src/ui/widgets.rs:1736
+#: src/ui/player_bar.rs:561 src/ui/widgets.rs:596 src/ui/widgets.rs:827
+#: src/ui/widgets.rs:1739
 msgid "Remove from Liked Songs"
 msgstr "Beğenilenler'den kaldır"
 
-#: src/ui/player_bar.rs:544 src/ui/widgets.rs:599 src/ui/widgets.rs:830
-#: src/ui/widgets.rs:1738
+#: src/ui/player_bar.rs:567 src/ui/widgets.rs:599 src/ui/widgets.rs:830
+#: src/ui/widgets.rs:1741
 msgid "Save to Liked Songs"
 msgstr "Beğenilenler'e kaydet"
 
-#: src/ui/player_bar.rs:626 src/ui/player_bar.rs:633 src/ui/collection.rs:260
+#: src/ui/player_bar.rs:649 src/ui/player_bar.rs:656 src/ui/collection.rs:267
 msgid "Shuffle"
 msgstr "Karışık çal"
 
-#: src/ui/player_bar.rs:647
+#: src/ui/player_bar.rs:670
 msgid "Previous"
 msgstr "Önceki"
 
-#: src/ui/player_bar.rs:680 src/ui/collection.rs:212
+#: src/ui/player_bar.rs:703 src/ui/collection.rs:219
 msgid "Pause"
 msgstr "Duraklat"
 
-#: src/ui/player_bar.rs:698
+#: src/ui/player_bar.rs:721
 msgid "Next"
 msgstr "Sonraki"
 
-#: src/ui/player_bar.rs:706
+#: src/ui/player_bar.rs:729
 msgid "Repeat"
 msgstr "Tekrarla"
 
-#: src/ui/player_bar.rs:710
+#: src/ui/player_bar.rs:733
 msgid "Repeat one"
 msgstr "Tek şarkıyı tekrarla"
 
-#: src/ui/player_bar.rs:715
+#: src/ui/player_bar.rs:738
 msgid "Repeat off"
 msgstr "Tekrarlamayı kapat"
 
-#: src/ui/player_bar.rs:776
+#: src/ui/player_bar.rs:799
 msgid "Playback position (%)"
 msgstr "Çalma konumu (%)"
 
-#: src/ui/player_bar.rs:819
-msgid "Volume (%)"
-msgstr "Ses düzeyi (%)"
+#: src/ui/player_bar.rs:838
+msgid "Playing on another device"
+msgstr "Başka bir cihazda çalınıyor"
 
-#: src/ui/player_bar.rs:852
-msgid "Unmute"
-msgstr "Sesi aç"
-
-#: src/ui/player_bar.rs:854
-msgid "Mute"
-msgstr "Sesi kapat"
-
-#: src/ui/player_bar.rs:870
-msgid "This device's volume can't be changed from Spotifast"
-msgstr "Bu cihazın ses düzeyi Spotifast üzerinden değiştirilemez"
-
-#: src/ui/player_bar.rs:885 src/ui/devices.rs:193
+#: src/ui/player_bar.rs:859 src/ui/player_bar.rs:899 src/ui/devices.rs:193
 msgid "Connect to a device"
 msgstr "Bir cihaza bağlan"
 
-#: src/ui/player_bar.rs:904 src/ui/queue.rs:23 src/ui/queue.rs:79
+#. Translators: {device} is the name of the device playing the music.
+#: src/ui/player_bar.rs:898
+#, rust-format
+msgid "Playing on {device}"
+msgstr "{device} üzerinde çalınıyor"
+
+#: src/ui/player_bar.rs:923
+msgid "Volume (%)"
+msgstr "Ses düzeyi (%)"
+
+#: src/ui/player_bar.rs:956
+msgid "Unmute"
+msgstr "Sesi aç"
+
+#: src/ui/player_bar.rs:958
+msgid "Mute"
+msgstr "Sesi kapat"
+
+#: src/ui/player_bar.rs:974
+msgid "This device's volume can't be changed from Spotifast"
+msgstr "Bu cihazın ses düzeyi Spotifast üzerinden değiştirilemez"
+
+#: src/ui/player_bar.rs:996 src/ui/queue.rs:23 src/ui/queue.rs:79
+#: src/ui/mod.rs:316
 msgid "Queue"
 msgstr "Sıra"
 
-#: src/ui/player_bar.rs:930 src/ui/lyrics.rs:67 src/ui/lyrics.rs:523
+#: src/ui/player_bar.rs:1022 src/ui/lyrics.rs:67 src/ui/lyrics.rs:523
 msgid "Lyrics"
 msgstr "Şarkı Sözleri"
 
@@ -302,7 +315,7 @@ msgstr "Şarkı Sözleri"
 msgid "Recent"
 msgstr "Geçmiş"
 
-#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:507
+#: src/ui/queue.rs:92 src/ui/lyrics.rs:78 src/ui/mod.rs:593
 msgid "Close"
 msgstr "Kapat"
 
@@ -336,12 +349,12 @@ msgid "Playing next"
 msgstr "Sıradaki"
 
 #. Translators: Upcoming songs from the current playlist or album, after manually queued songs.
-#: src/ui/queue.rs:433
+#: src/ui/queue.rs:433 src/ui/home.rs:224
 msgid "Next up"
 msgstr "Daha sonra"
 
-#: src/ui/queue.rs:474 src/ui/queue.rs:507 src/ui/widgets.rs:2505
-#: src/ui/collection.rs:1070
+#: src/ui/queue.rs:474 src/ui/queue.rs:507 src/ui/widgets.rs:2508
+#: src/ui/collection.rs:1077
 msgid "Retry"
 msgstr "Yeniden dene"
 
@@ -397,8 +410,8 @@ msgstr "Enstrümantal"
 msgid "No timed lyrics for this track."
 msgstr "Bu parça için senkronize şarkı sözü yok."
 
-#: src/ui/lyrics.rs:385 src/ui/widgets.rs:2490 src/app.rs:10136
-#: src/ui/collection.rs:733
+#: src/ui/lyrics.rs:385 src/ui/widgets.rs:2493 src/app.rs:10136
+#: src/ui/collection.rs:740
 msgid "Loading…"
 msgstr "Yükleniyor…"
 
@@ -484,12 +497,12 @@ msgctxt "artist"
 msgid "Follow"
 msgstr "Takip Et"
 
-#: src/ui/widgets.rs:1034 src/ui/collection.rs:1748 src/ui/collection.rs:1770
+#: src/ui/widgets.rs:1034 src/ui/collection.rs:1755 src/ui/collection.rs:1777
 #: src/ui/show.rs:169
 msgid "Remove from Your Library"
 msgstr "Kitaplığından kaldır"
 
-#: src/ui/widgets.rs:1035 src/ui/collection.rs:1747
+#: src/ui/widgets.rs:1035 src/ui/collection.rs:1754
 msgid "Add to Your Library"
 msgstr "Kitaplığına ekle"
 
@@ -519,13 +532,13 @@ msgstr "Sanatçı radyosuna git"
 msgid "Play {title}, {subtitle}"
 msgstr "{title}, {subtitle} çal"
 
-#: src/ui/widgets.rs:1783 src/ui/artist.rs:371 src/ui/collection.rs:306
+#: src/ui/widgets.rs:1786 src/ui/artist.rs:371 src/ui/collection.rs:313
 #: src/ui/show.rs:187 src/ui/show.rs:389
 msgid "More"
 msgstr "Daha fazla"
 
 #. Translators: The label beside the pointer while songs are dragged. {name} is the first song's name and {count} how many more songs are dragged with it.
-#: src/ui/widgets.rs:1919
+#: src/ui/widgets.rs:1922
 #, rust-format
 msgid "{name} + {count} more"
 msgid_plural "{name} + {count} more"
@@ -533,86 +546,86 @@ msgstr[0] "{name} + {count} tane daha"
 msgstr[1] "{name} + {count} tane daha"
 
 #. Translators: {column} is a column heading of a song list, such as Title.
-#: src/ui/widgets.rs:2036
+#: src/ui/widgets.rs:2039
 #, rust-format
 msgid "Sort by {column}"
 msgstr "{column} sütununa göre sırala"
 
-#: src/ui/widgets.rs:2086
+#: src/ui/widgets.rs:2089
 msgid "Sort by playlist order"
 msgstr "Çalma listesi sırasına göre sırala"
 
-#: src/ui/widgets.rs:2121
+#: src/ui/widgets.rs:2124
 msgid "Original order, reversed"
 msgstr "Özgün sıra, ters çevrilmiş"
 
-#: src/ui/widgets.rs:2134
+#: src/ui/widgets.rs:2137
 msgctxt "column heading"
 msgid "TITLE"
 msgstr "BAŞLIK"
 
-#: src/ui/widgets.rs:2157
+#: src/ui/widgets.rs:2160
 msgctxt "column heading"
 msgid "ALBUM"
 msgstr "ALBÜM"
 
-#: src/ui/widgets.rs:2166
+#: src/ui/widgets.rs:2169
 msgctxt "column heading"
 msgid "ADDED BY"
 msgstr "EKLEYEN"
 
-#: src/ui/widgets.rs:2175
+#: src/ui/widgets.rs:2178
 msgctxt "column heading"
 msgid "DATE ADDED"
 msgstr "EKLENME TARİHİ"
 
-#: src/ui/widgets.rs:2196 src/ui/widgets.rs:2226
+#: src/ui/widgets.rs:2199 src/ui/widgets.rs:2229
 msgid "Sort by duration"
 msgstr "Süreye göre sırala"
 
-#: src/ui/widgets.rs:2740
+#: src/ui/widgets.rs:2743
 msgid "Cut"
 msgstr "Kes"
 
-#: src/ui/widgets.rs:2745
+#: src/ui/widgets.rs:2748
 msgid "Copy"
 msgstr "Kopyala"
 
-#: src/ui/widgets.rs:2750
+#: src/ui/widgets.rs:2753
 msgid "Paste"
 msgstr "Yapıştır"
 
-#: src/ui/widgets.rs:2767
+#: src/ui/widgets.rs:2770
 msgid "Select all"
 msgstr "Tümünü seç"
 
-#: src/ui/widgets.rs:2870
+#: src/ui/widgets.rs:2971
 msgid "Clear"
 msgstr "Temizle"
 
 #. Translators: {name} is replaced by the author's name, shown as a link.
-#: src/ui/widgets.rs:2915
+#: src/ui/widgets.rs:3016
 #, rust-format
 msgid "Built with love by {name}"
 msgstr "{name} tarafından sevgiyle geliştirildi"
 
-#: src/ui/widgets.rs:3060
+#: src/ui/widgets.rs:3161
 msgid "Host"
 msgstr "Sunucu"
 
-#: src/ui/widgets.rs:3077
+#: src/ui/widgets.rs:3178
 msgid "Port"
 msgstr "Port"
 
-#: src/ui/widgets.rs:3095
+#: src/ui/widgets.rs:3196
 msgid "Username"
 msgstr "Kullanıcı adı"
 
-#: src/ui/widgets.rs:3106
+#: src/ui/widgets.rs:3207
 msgid "Password"
 msgstr "Parola"
 
-#: src/ui/widgets.rs:3124
+#: src/ui/widgets.rs:3225
 msgid ""
 "Proxy login applies to Web requests. Local playback uses this proxy only "
 "without a login."
@@ -620,7 +633,7 @@ msgstr ""
 "Proxy girişi web istekleri için geçerlidir. Yerel çalma bu proxy'yi yalnızca "
 "kimlik doğrulamasız kullanır."
 
-#: src/ui/widgets.rs:3128
+#: src/ui/widgets.rs:3229
 msgid ""
 "Spotify hostnames are resolved by the proxy. Local playback connects "
 "directly."
@@ -674,15 +687,16 @@ msgstr "Yerel çalma: {error}"
 msgid "Spotify audio disconnected. Reconnecting local playback"
 msgstr "Spotify ses bağlantısı kesildi. Yerel çalma yeniden bağlanıyor"
 
-#: src/app.rs:2387 src/app/radio.rs:191 src/ui/radio.rs:35 src/ui/radio.rs:77
+#: src/app.rs:2387 src/app/radio.rs:191 src/ui/mod.rs:315 src/ui/radio.rs:35
+#: src/ui/radio.rs:77
 msgid "Radio"
 msgstr "Radyo"
 
-#: src/app.rs:2421 src/api/models.rs:259
+#: src/app.rs:2421 src/api/models.rs:259 src/ui/mod.rs:290
 msgid "Album"
 msgstr "Albüm"
 
-#: src/app.rs:2459 src/ui/show.rs:124
+#: src/app.rs:2459 src/ui/mod.rs:312 src/ui/show.rs:124
 msgid "Podcast"
 msgstr "Podcast"
 
@@ -1089,8 +1103,8 @@ msgstr "Kapak yüklenemedi: {error}. Yeniden deneyin."
 msgid "{track} Radio"
 msgstr "{track} Radyosu"
 
-#: src/ui/settings.rs:202 src/ui/keys.rs:290 src/ui/topbar.rs:443
-#: src/ui/topbar.rs:473
+#: src/ui/settings.rs:202 src/ui/keys.rs:290 src/ui/mod.rs:317
+#: src/ui/topbar.rs:503 src/ui/topbar.rs:533
 msgid "Settings"
 msgstr "Ayarlar"
 
@@ -1106,7 +1120,7 @@ msgstr "Klasörü aç"
 msgid "Account"
 msgstr "Hesap"
 
-#: src/ui/settings.rs:245 src/ui/topbar.rs:461
+#: src/ui/settings.rs:245 src/ui/topbar.rs:521
 msgid "Sign out"
 msgstr "Oturumu kapat"
 
@@ -1494,7 +1508,9 @@ msgstr ""
 
 #: src/ui/settings.rs:890
 msgid "Draw the cover behind each page's title as a field of dots."
-msgstr "Her sayfanın başlığının arkasında kapağı noktalardan oluşan bir alan olarak çizer."
+msgstr ""
+"Her sayfanın başlığının arkasında kapağı noktalardan oluşan bir alan olarak "
+"çizer."
 
 #: src/ui/settings.rs:1045
 msgid "Off"
@@ -1863,7 +1879,7 @@ msgid "Checking…"
 msgstr "Denetleniyor…"
 
 #: src/ui/settings.rs:1884 src/ui/dialogs.rs:153 src/ui/keys.rs:300
-#: src/ui/topbar.rs:451
+#: src/ui/topbar.rs:511
 msgid "Keyboard shortcuts"
 msgstr "Klavye kısayolları"
 
@@ -1917,7 +1933,7 @@ msgstr "Tümü"
 msgid "Songs"
 msgstr "Şarkılar"
 
-#: src/model.rs:638 src/ui/library.rs:32 src/ui/search.rs:272
+#: src/model.rs:638 src/ui/library.rs:32 src/ui/mod.rs:270 src/ui/search.rs:272
 msgid "Episodes"
 msgstr "Bölümler"
 
@@ -1949,11 +1965,11 @@ msgctxt "proxy"
 msgid "System"
 msgstr "Sistem"
 
-#: src/theme.rs:164
+#: src/theme.rs:184
 msgid "Loading local themes…"
 msgstr "Yerel temalar yükleniyor…"
 
-#: src/theme.rs:167
+#: src/theme.rs:187
 msgid ""
 "The selected theme is unavailable. Keeping the last usable appearance. See "
 "the log for details."
@@ -1961,11 +1977,11 @@ msgstr ""
 "Seçilen tema kullanılamıyor. Son geçerli görünüm korunuyor. Ayrıntılar için "
 "günlüğe bakın."
 
-#: src/theme.rs:171
+#: src/theme.rs:191
 msgid "The themes folder could not be read. See the log for details."
 msgstr "Temalar klasörü okunamadı. Ayrıntılar için günlüğe bakın."
 
-#: src/theme.rs:175
+#: src/theme.rs:195
 msgid ""
 "The themes folder has more than 512 entries. Keep fewer files there to list "
 "the custom palettes."
@@ -1973,7 +1989,7 @@ msgstr ""
 "Temalar klasöründe 512'den fazla öğe var. Özel paletleri listelemek için "
 "orada daha az dosya bulundurun."
 
-#: src/theme.rs:179
+#: src/theme.rs:199
 msgid ""
 "Only 128 custom palettes can be listed. Keep fewer JSON files in the themes "
 "folder to see the rest."
@@ -1981,7 +1997,7 @@ msgstr ""
 "Yalnızca 128 özel palet listelenebilir. Diğerlerini görmek için temalar "
 "klasöründe daha az JSON dosyası bulundurun."
 
-#: src/theme.rs:183
+#: src/theme.rs:203
 msgid ""
 "The Omarchy palette could not be loaded. Keeping the last usable appearance. "
 "See the log for details."
@@ -1989,7 +2005,7 @@ msgstr ""
 "Omarchy paleti yüklenemedi. Son geçerli görünüm korunuyor. Ayrıntılar için "
 "günlüğe bakın."
 
-#: src/theme.rs:187
+#: src/theme.rs:207
 msgid ""
 "Custom themes could not be loaded. Run spotifast reload-themes to try again."
 msgstr ""
@@ -2032,7 +2048,7 @@ msgid_plural "{count} followers"
 msgstr[0] "{count} takipçi"
 msgstr[1] "{count} takipçi"
 
-#: src/ui/artist.rs:332 src/ui/collection.rs:200 src/ui/show.rs:146
+#: src/ui/artist.rs:332 src/ui/collection.rs:207 src/ui/show.rs:146
 #: src/ui/show.rs:298
 msgid "Starting…"
 msgstr "Başlatılıyor…"
@@ -2042,65 +2058,65 @@ msgctxt "artist"
 msgid "Following"
 msgstr "Takip Ediliyor"
 
-#: src/ui/collection.rs:219
+#: src/ui/collection.rs:226
 msgid "No playable songs in this view"
 msgstr "Bu görünümde çalınabilir şarkı yok"
 
-#: src/ui/collection.rs:258
+#: src/ui/collection.rs:265
 msgid "Shuffle off"
 msgstr "Karışık çalmayı kapat"
 
-#: src/ui/collection.rs:293 src/ui/collection.rs:319
+#: src/ui/collection.rs:300 src/ui/collection.rs:326
 msgid "Save as playlist"
 msgstr "Çalma listesi olarak kaydet"
 
-#: src/ui/collection.rs:341
+#: src/ui/collection.rs:348
 msgid "Refreshing…"
 msgstr "Yenileniyor…"
 
-#: src/ui/collection.rs:343 src/ui/devices.rs:206
+#: src/ui/collection.rs:350 src/ui/devices.rs:206
 msgid "Refresh"
 msgstr "Yenile"
 
-#: src/ui/collection.rs:362
+#: src/ui/collection.rs:369
 msgid "Filter"
 msgstr "Filtrele"
 
-#: src/ui/collection.rs:727 src/ui/collection.rs:753
+#: src/ui/collection.rs:734 src/ui/collection.rs:760
 msgid "Unavailable"
 msgstr "Kullanılamıyor"
 
-#: src/ui/collection.rs:881
+#: src/ui/collection.rs:888
 msgid "Nothing here yet"
 msgstr "Burada henüz bir şey yok"
 
-#: src/ui/collection.rs:882
+#: src/ui/collection.rs:889
 msgid "Added songs appear here."
 msgstr "Eklenen şarkılar burada görünür."
 
-#: src/ui/collection.rs:1292 src/ui/home.rs:674
+#: src/ui/collection.rs:1299 src/ui/home.rs:957 src/ui/mod.rs:264
 msgid "Your top songs"
 msgstr "En çok dinlediğin şarkılar"
 
-#: src/ui/collection.rs:1301
+#: src/ui/collection.rs:1308
 msgid "Your most-played tracks from the last four weeks."
 msgstr "Son dört haftada en çok dinlediğin parçalar."
 
-#: src/ui/collection.rs:1696
+#: src/ui/collection.rs:1703
 msgid "Collaborative Playlist"
 msgstr "Ortak Çalma Listesi"
 
-#: src/ui/collection.rs:1698
+#: src/ui/collection.rs:1705
 msgid "Public Playlist"
 msgstr "Herkese Açık Çalma Listesi"
 
-#: src/ui/collection.rs:1769
+#: src/ui/collection.rs:1776
 msgid "Save to Your Library"
 msgstr "Kitaplığına kaydet"
 
 #. Translators: {count} is a number of songs and {duration} their total
 #. length, such as "2 hr 13 min".
-#: src/ui/collection.rs:1977
+#: src/ui/collection.rs:1984
 #, rust-format
 msgid "{count} song, {duration}"
 msgid_plural "{count} songs, {duration}"
@@ -2108,19 +2124,19 @@ msgstr[0] "{count} şarkı, {duration}"
 msgstr[1] "{count} şarkı, {duration}"
 
 #. Translators: {name} is the name of someone who added songs to the playlist.
-#: src/ui/collection.rs:1991
+#: src/ui/collection.rs:1998
 #, rust-format
 msgid "with {name}"
 msgstr "{name} ile"
 
 #. Translators: {first} and {second} are names of people who added songs.
-#: src/ui/collection.rs:1995
+#: src/ui/collection.rs:2002
 #, rust-format
 msgid "with {first} and {second}"
 msgstr "{first} ve {second} ile"
 
 #. Translators: {count} is how many other people added songs to the playlist.
-#: src/ui/collection.rs:2002
+#: src/ui/collection.rs:2009
 #, rust-format
 msgid "and {count} other"
 msgid_plural "and {count} others"
@@ -2367,45 +2383,49 @@ msgstr "İsteğe bağlı açıklama"
 msgid "Save"
 msgstr "Kaydet"
 
-#: src/ui/home.rs:222
+#: src/ui/home.rs:94 src/ui/topbar.rs:416
+msgid "What do you want to play?"
+msgstr "Ne çalmak istersiniz?"
+
+#: src/ui/home.rs:505
 msgid "Made for you"
 msgstr "Senin İçin Hazırlandı"
 
-#: src/ui/home.rs:227
+#: src/ui/home.rs:510
 msgid "Couldn't load this shelf"
 msgstr "Bu bölüm yüklenemedi"
 
 #. Translators: {owner} is the name of the playlist's owner.
-#: src/ui/home.rs:238 src/ui/search.rs:602
+#: src/ui/home.rs:521 src/ui/search.rs:602
 #, rust-format
 msgid "By {owner}"
 msgstr "{owner} tarafından"
 
-#: src/ui/home.rs:466
+#: src/ui/home.rs:749
 msgid "Your podcasts"
 msgstr "Podcast'lerin"
 
 #. Translators: {time} is the time left in an episode, such as 12 min; {show} is the podcast's name.
-#: src/ui/home.rs:472
+#: src/ui/home.rs:755
 #, rust-format
 msgid "{time} left • {show}"
 msgstr "{time} kaldı • {show}"
 
 #. Translators: {show} is the podcast's name.
-#: src/ui/home.rs:481
+#: src/ui/home.rs:764
 #, rust-format
 msgid "New • {show}"
 msgstr "Yeni • {show}"
 
-#: src/ui/home.rs:527 src/ui/home.rs:537 src/ui/home.rs:552
+#: src/ui/home.rs:810 src/ui/home.rs:820 src/ui/home.rs:835
 msgid "Your top artists"
 msgstr "En çok dinlediğin sanatçılar"
 
-#: src/ui/home.rs:675
+#: src/ui/home.rs:958
 msgid "Show more top songs"
 msgstr "Daha fazla popüler şarkı göster"
 
-#: src/ui/home.rs:689
+#: src/ui/home.rs:972
 msgid "Recommended for you"
 msgstr "Senin için önerilenler"
 
@@ -2625,15 +2645,15 @@ msgstr "Proxy Ayarları"
 msgid "Spotifast {version} • not affiliated with Spotify"
 msgstr "Spotifast {version} • Spotify ile bağlantılı değildir"
 
-#: src/ui/mod.rs:493
+#: src/ui/mod.rs:579
 msgid "Minimize"
 msgstr "Simge Durumuna Küçült"
 
-#: src/ui/mod.rs:499
+#: src/ui/mod.rs:585
 msgid "Restore"
 msgstr "Önceki Boyut"
 
-#: src/ui/mod.rs:501
+#: src/ui/mod.rs:587
 msgid "Maximize"
 msgstr "Ekranı Kapla"
 
@@ -2750,72 +2770,58 @@ msgstr "{duration} kaldı"
 msgid "Played"
 msgstr "Oynatıldı"
 
-#: src/ui/topbar.rs:232
+#: src/ui/topbar.rs:328
 msgid "Show sidebar (Ctrl+B)"
 msgstr "Kenar çubuğunu göster (Ctrl+B)"
 
-#: src/ui/topbar.rs:233
+#: src/ui/topbar.rs:329
 msgid "Show sidebar (Cmd+B)"
 msgstr "Kenar çubuğunu göster (Cmd+B)"
 
-#: src/ui/topbar.rs:252
+#: src/ui/topbar.rs:348
 msgid "Back"
 msgstr "Geri"
 
-#: src/ui/topbar.rs:263
+#: src/ui/topbar.rs:359
 msgid "Forward"
 msgstr "İleri"
 
-#. Translators: {device} is the name of the device playing the music.
-#: src/ui/topbar.rs:277
-#, rust-format
-msgid "Playing on {device}"
-msgstr "{device} üzerinde çalınıyor"
-
-#: src/ui/topbar.rs:279
-msgid "Playing on another device"
-msgstr "Başka bir cihazda çalınıyor"
-
-#: src/ui/topbar.rs:288
+#: src/ui/topbar.rs:373
 msgid "Update ready"
 msgstr "Güncelleme hazır"
 
-#: src/ui/topbar.rs:291 src/ui/update.rs:74
+#: src/ui/topbar.rs:376 src/ui/update.rs:74
 msgid "Downloading update…"
 msgstr "Güncelleme indiriliyor…"
 
 #. Translators: {version} is a version number such as 1.2.0.
-#: src/ui/topbar.rs:295
+#: src/ui/topbar.rs:380
 #, rust-format
 msgid "Update to {version}"
 msgstr "{version} sürümüne güncelle"
 
-#: src/ui/topbar.rs:334
-msgid "What do you want to play?"
-msgstr "Ne çalmak istersiniz?"
-
-#: src/ui/topbar.rs:490
+#: src/ui/topbar.rs:550
 msgid "MilkDrop visualiser (Ctrl+Shift+K)"
 msgstr "MilkDrop görselleştiricisi (Ctrl+Shift+K)"
 
-#: src/ui/topbar.rs:491
+#: src/ui/topbar.rs:551
 msgid "MilkDrop visualiser (Cmd+Shift+K)"
 msgstr "MilkDrop görselleştiricisi (Cmd+Shift+K)"
 
-#: src/ui/topbar.rs:505
+#: src/ui/topbar.rs:565
 msgid "Winamp mini player (Ctrl+M)"
 msgstr "Winamp mini çalar (Ctrl+M)"
 
-#: src/ui/topbar.rs:506
+#: src/ui/topbar.rs:566
 msgid "Winamp mini player (Cmd+Shift+M)"
 msgstr "Winamp mini çalar (Cmd+Shift+M)"
 
-#: src/ui/topbar.rs:517
+#: src/ui/topbar.rs:577
 msgid "Waiting for Spotify…"
 msgstr "Spotify bekleniyor…"
 
 #. Translators: {version} is a version number such as 1.2.0.
-#: src/ui/topbar.rs:554
+#: src/ui/topbar.rs:592
 #, rust-format
 msgid "Version {version} is available."
 msgstr "Sürüm {version} hazır."

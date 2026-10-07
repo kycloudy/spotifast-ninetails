@@ -384,9 +384,9 @@ fn top_result(
                 &mut child,
                 Icon::PlayFilled,
                 48.0,
-                palette.accent,
-                palette.accent_hover,
-                palette.on_accent,
+                palette.solid(),
+                palette.solid_hover(),
+                palette.on_solid(),
                 &gettext(app.locale, "Play"),
             )
             .clicked()

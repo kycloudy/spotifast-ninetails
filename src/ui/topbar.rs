@@ -1,4 +1,6 @@
-//! Navigation arrows, search, and the account menu above every page.
+//! Navigation arrows, the page's name, and the account menu above every
+//! page, in Zeron's compact bar. Search lives in the sidebar; while the
+//! sidebar is hidden, the bar takes the field back.
 
 use std::sync::Arc;
 
@@ -13,20 +15,24 @@ use crate::theme::{self, Icon, Palette};
 /// The gap the bar keeps between everything it lays out.
 const ITEM_SPACING: f32 = 8.0;
 /// The account avatar, and the icon in each of the three buttons beside it.
-const AVATAR_SIZE: f32 = 36.0;
-const ICON_BUTTON_ICON: f32 = 19.0;
+const AVATAR_SIZE: f32 = 28.0;
+const ICON_BUTTON_ICON: f32 = 16.0;
 /// `theme::icon_button` pads its icon by 12 px.
 const ICON_BUTTON_SIZE: f32 = ICON_BUTTON_ICON + 12.0;
+/// The back and forward buttons.
+const NAV_SIZE: f32 = 28.0;
+/// The page's name: a quiet pill as tall as the buttons.
+const PILL_HEIGHT: f32 = 28.0;
 const SPINNER_SIZE: f32 = 15.0;
 /// A badge is as tall as its text plus this, and as wide as its text plus
 /// the padding its own label needs.
 const BADGE_PADDING_Y: f32 = 12.0;
-const DEVICE_BADGE_PADDING: f32 = 28.0;
 /// The text starts 24 px in; leave 8 px after it to match the space before
 /// the icon.
 const UPDATE_BADGE_PADDING: f32 = 32.0;
-/// The width the search field aims for, the most it ever takes, and the
-/// least it shrinks to before the badges give up their labels instead.
+/// The width the search field, or the page's pill, aims for, the most it
+/// ever takes, and the least it shrinks to before the badge gives up its
+/// label instead.
 const SEARCH_IDEAL: f32 = 200.0;
 const SEARCH_MAX: f32 = 440.0;
 const SEARCH_FLOOR: f32 = 130.0;
@@ -36,14 +42,14 @@ const SEARCH_MIN: f32 = 80.0;
 /// Everything at the right end whose width never changes: the page padding,
 /// the avatar, the gap the account menu leaves, the three icon buttons, and
 /// the spacing between them. The cursor stops at the left edge of the last
-/// button, so this counts three gaps, not four. The spinner and the badges
+/// button, so this counts three gaps, not four. The spinner and the badge
 /// are measured on top of it because they come and go.
 const RIGHT_CONTROLS_WIDTH: f32 =
     super::widgets::PAGE_PADDING + AVATAR_SIZE + 4.0 + 3.0 * ICON_BUTTON_SIZE + 3.0 * ITEM_SPACING;
 
 /// What precedes the field until the bar has drawn once: the page padding,
 /// the back and forward buttons and the gaps after them.
-const LEAD_GUESS: f32 = super::widgets::PAGE_PADDING + 2.0 * 32.0 + 3.0 * ITEM_SPACING + 8.0;
+const LEAD_GUESS: f32 = super::widgets::PAGE_PADDING + 2.0 * NAV_SIZE + 3.0 * ITEM_SPACING + 4.0;
 /// A badge collapsed to its icon: a square as tall as its 12.5 pt label.
 const BADGE_CHIP: f32 = 15.0 + BADGE_PADDING_Y;
 
@@ -53,8 +59,8 @@ fn lead_id() -> egui::Id {
 
 /// The narrowest the bar, and so the page under it, can be before its
 /// controls run into each other: the narrowest field, with the spinner and
-/// both badges as icons. Counting them even while they are away keeps the
-/// panels and the window from changing width as they come and go.
+/// the update badge as an icon. Counting them even while they are away keeps
+/// the panels and the window from changing width as they come and go.
 pub fn least_width(ctx: &egui::Context) -> f32 {
     let lead = ctx
         .data(|data| data.get_temp(lead_id()))
@@ -67,23 +73,24 @@ fn least_width_after(lead: f32) -> f32 {
         + RIGHT_CONTROLS_WIDTH
         + SPINNER_SIZE
         + ITEM_SPACING
-        + 2.0 * (ITEM_SPACING + BADGE_CHIP)
+        + ITEM_SPACING
+        + BADGE_CHIP
 }
 
 /// How the top bar divides itself for one window width.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct TopbarFit {
-    /// How wide the search field may be.
+    /// How wide the search field, or the page's pill, may be.
     search: f32,
-    /// Whether the badges have the room to spell themselves out.
+    /// Whether the badge has the room to spell itself out.
     labels: bool,
 }
 
 /// Divide the bar. The search field keeps the half it has always had, but
-/// never so much that the right end has to reach over it, and the badges
-/// fall back to their icons before the field shrinks past reading size.
+/// never so much that the right end has to reach over it, and the badge
+/// falls back to its icon before the field shrinks past reading size.
 ///
-/// `labelled` and `icons` are what the badges ask for with and without their
+/// `labelled` and `icons` are what the badge asks for with and without its
 /// text, each already including the spacing that precedes it.
 fn topbar_fit(room: f32, controls: f32, labelled: f32, icons: f32) -> TopbarFit {
     // SEARCH_IDEAL is above SEARCH_FLOOR, so the clamp below is well ordered.
@@ -162,20 +169,22 @@ fn nav_button(
     tooltip: &str,
 ) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(
-        Vec2::splat(32.0),
+        Vec2::splat(NAV_SIZE),
         if enabled {
             Sense::click()
         } else {
             Sense::hover()
         },
     );
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, enabled, tooltip));
     if ui.is_rect_visible(rect) {
-        let fill = if palette.dark {
-            egui::Color32::from_black_alpha(90)
-        } else {
-            egui::Color32::from_black_alpha(20)
-        };
-        ui.painter().circle_filled(rect.center(), 16.0, fill);
+        if enabled && response.hovered() {
+            ui.painter().rect_filled(
+                rect,
+                f32::from(theme::RADIUS_SMALL + 2),
+                palette.surface_hover,
+            );
+        }
         let color = if !enabled {
             palette.dim
         } else if response.hovered() {
@@ -183,12 +192,99 @@ fn nav_button(
         } else {
             palette.secondary
         };
-        theme::paint_icon(ui, icon, rect, 20.0, color);
+        theme::paint_icon(ui, icon, rect, 16.0, color);
     }
+    theme::focus_ring(ui, &response);
     if enabled {
         response.on_hover_text(tooltip)
     } else {
         response
+    }
+}
+
+/// The shown page's name in a quiet pill, as Zeron names its view.
+fn page_pill(ui: &mut egui::Ui, palette: &Palette, icon: Icon, label: &str, max_width: f32) {
+    let font = theme::medium(13.0);
+    let mut job = egui::text::LayoutJob::simple_singleline(label.to_owned(), font, palette.text);
+    // Icon, its gap and the padding either side.
+    let chrome = 10.0 + 14.0 + 6.0 + 10.0;
+    job.wrap = egui::text::TextWrapping::truncate_at_width((max_width - chrome).max(24.0));
+    let galley = ui.painter().layout_job(job);
+    let size = vec2(chrome + galley.size().x, PILL_HEIGHT);
+    let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+    let response = ui.interact(rect, egui::Id::new("page-pill"), Sense::hover());
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Label, true, label));
+    if ui.is_rect_visible(rect) {
+        ui.painter()
+            .rect_filled(rect, f32::from(theme::RADIUS - 2), pill_fill(palette));
+        let icon_rect = egui::Rect::from_center_size(
+            pos2(rect.left() + 17.0, rect.center().y),
+            Vec2::splat(14.0),
+        );
+        icon.image(palette.text, 14.0).paint_at(ui, icon_rect);
+        ui.painter().galley(
+            pos2(rect.left() + 30.0, rect.center().y - galley.size().y / 2.0),
+            galley,
+            palette.text,
+        );
+    }
+}
+
+/// The pill's fill: the page shows faintly through it.
+fn pill_fill(palette: &Palette) -> egui::Color32 {
+    if palette.dark {
+        egui::Color32::from_white_alpha(18)
+    } else {
+        egui::Color32::from_black_alpha(13)
+    }
+}
+
+/// The one search field for all of Spotify, wherever it is drawn: in the
+/// sidebar, or in this bar while the sidebar is hidden. Typing opens the
+/// search page; Enter searches at once; Escape lets go of the field.
+pub(crate) fn global_search(app: &mut App, ui: &mut egui::Ui, width: f32, hint: &str) {
+    let palette = app.palette;
+    let id = egui::Id::new("global-search");
+    let before = app.search.query.clone();
+    let (response, rect) = super::widgets::search_field_in(
+        ui,
+        &palette,
+        app.locale,
+        id,
+        &mut app.search.query,
+        hint,
+        width,
+    );
+    if app.search.query.is_empty() && !response.has_focus() {
+        super::widgets::search_shortcut_hint(
+            ui,
+            &palette,
+            rect,
+            super::keys::platform_shortcut("Ctrl F", "Cmd F"),
+        );
+    }
+    if app.search.focus_requested {
+        app.search.focus_requested = false;
+        response.request_focus();
+    }
+    // Clear empties the field and hands it focus in the same frame.
+    // Neither should leave the page: only typing a query does.
+    let cleared = app.search.query.is_empty() && !before.is_empty();
+    if response.gained_focus() && !cleared && !matches!(app.page(), Page::Search) {
+        app.actions.push(Action::Open(Page::Search));
+    }
+    if app.search.query != before {
+        app.search.typed_at = Some(std::time::Instant::now());
+        if !cleared && !matches!(app.page(), Page::Search) {
+            app.actions.push(Action::Open(Page::Search));
+        }
+    }
+    if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
+        let query = app.search.query.clone();
+        app.actions.push(Action::Search(query));
+    }
+    if response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+        response.surrender_focus();
     }
 }
 
@@ -247,7 +343,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             if nav_button(
                 ui,
                 &palette,
-                Icon::ChevronLeft,
+                Icon::ArrowLeft,
                 app.can_go_back(),
                 &gettext(locale, "Back"),
             )
@@ -258,7 +354,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             if nav_button(
                 ui,
                 &palette,
-                Icon::ChevronRight,
+                Icon::ArrowRight,
                 app.can_go_forward(),
                 &gettext(locale, "Forward"),
             )
@@ -266,21 +362,10 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             {
                 app.actions.push(Action::Forward);
             }
-            ui.add_space(8.0);
+            ui.add_space(4.0);
 
-            // The badges sit at the right end but grow with their text, so
-            // measure them here, before the search field takes its share.
-            let device_galley = app.now_playing().filter(|now| !now.local).map(|now| {
-                let label = match now.device_name {
-                    Some(device) => {
-                        // Translators: {device} is the name of the device playing the music.
-                        gettext(locale, "Playing on {device}").replace("{device}", &device)
-                    }
-                    None => gettext(locale, "Playing on another device").into_owned(),
-                };
-                ui.painter()
-                    .layout_no_wrap(label, theme::medium(12.5), palette.accent)
-            });
+            // The badge sits at the right end but grows with its text, so
+            // measure it here, before the field or the pill takes its share.
             let update = app.update.clone();
             let update_galley = update.as_ref().map(|update| {
                 let label = match &app.update_download {
@@ -304,10 +389,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 .backend
                 .activity()
                 .busy(std::time::Duration::from_millis(1000));
-            let badges = |labels: bool| {
-                badge_width(device_galley.as_ref(), DEVICE_BADGE_PADDING, labels)
-                    + badge_width(update_galley.as_ref(), UPDATE_BADGE_PADDING, labels)
-            };
+            let badges =
+                |labels: bool| badge_width(update_galley.as_ref(), UPDATE_BADGE_PADDING, labels);
             let controls = RIGHT_CONTROLS_WIDTH
                 + if busy {
                     SPINNER_SIZE + ITEM_SPACING
@@ -322,40 +405,16 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             let lead = width - ui.available_width() + window_controls.topbar_width;
             ui.ctx().data_mut(|data| data.insert_temp(lead_id(), lead));
             let fit = topbar_fit(search_room, controls, badges(true), badges(false));
-            let search_width = fit.search;
-            let id = egui::Id::new("global-search");
-            let before = app.search.query.clone();
-            let response = super::widgets::search_field(
-                ui,
-                &palette,
-                app.locale,
-                id,
-                &mut app.search.query,
-                &gettext(locale, "What do you want to play?"),
-                search_width,
-            );
-            if app.search.focus_requested {
-                app.search.focus_requested = false;
-                response.request_focus();
-            }
-            // Clear empties the field and hands it focus in the same frame.
-            // Neither should leave the page: only typing a query does.
-            let cleared = app.search.query.is_empty() && !before.is_empty();
-            if response.gained_focus() && !cleared && !matches!(app.page(), Page::Search) {
-                app.actions.push(Action::Open(Page::Search));
-            }
-            if app.search.query != before {
-                app.search.typed_at = Some(std::time::Instant::now());
-                if !cleared && !matches!(app.page(), Page::Search) {
-                    app.actions.push(Action::Open(Page::Search));
-                }
-            }
-            if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                let query = app.search.query.clone();
-                app.actions.push(Action::Search(query));
-            }
-            if response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
-                response.surrender_focus();
+            if app.settings.sidebar_visible {
+                let (icon, label) = super::page_label(app);
+                page_pill(ui, &palette, icon, &label, fit.search);
+            } else {
+                global_search(
+                    app,
+                    ui,
+                    fit.search,
+                    &gettext(locale, "What do you want to play?"),
+                );
             }
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -380,15 +439,16 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     } else {
                         palette.surface
                     };
-                    ui.painter().circle_filled(rect.center(), 18.0, fill);
-                    let inner = egui::Rect::from_center_size(rect.center(), Vec2::splat(28.0));
+                    ui.painter()
+                        .circle_filled(rect.center(), AVATAR_SIZE / 2.0, fill);
+                    let inner = egui::Rect::from_center_size(rect.center(), Vec2::splat(24.0));
                     match avatar.as_deref() {
                         Some(url) => super::widgets::paint_cover(
                             ui,
                             &palette,
                             Some(url),
                             inner,
-                            14.0,
+                            12.0,
                             Icon::User,
                             Some(app.backend.art()),
                         ),
@@ -400,12 +460,12 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                                 .to_uppercase()
                                 .to_string();
                             ui.painter()
-                                .circle_filled(inner.center(), 14.0, palette.accent);
+                                .circle_filled(inner.center(), 12.0, palette.accent);
                             ui.painter().text(
                                 inner.center(),
                                 egui::Align2::CENTER_CENTER,
                                 initial,
-                                theme::bold(13.0),
+                                theme::bold(12.0),
                                 palette.on_accent,
                             );
                         }
@@ -516,28 +576,6 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     theme::spinner(ui, SPINNER_SIZE, palette.secondary)
                         .on_hover_text(gettext(locale, "Waiting for Spotify…").as_ref());
                 }
-                // Where playback is.
-                if let Some(galley) = device_galley {
-                    let device = galley.text().to_owned();
-                    let response = badge(
-                        ui,
-                        &palette,
-                        Icon::Speaker,
-                        galley,
-                        DEVICE_BADGE_PADDING,
-                        fit.labels,
-                    );
-                    // Without its label the badge still has to say where
-                    // playback went.
-                    let response = if fit.labels {
-                        response
-                    } else {
-                        response.on_hover_text(device)
-                    };
-                    if response.clicked() {
-                        app.actions.push(Action::ToggleDevicesPopup);
-                    }
-                }
                 // A newer release. Most people never visit a releases page,
                 // so the app says so, quietly, until they do.
                 if let (Some(galley), Some(update)) = (update_galley, update)
@@ -646,10 +684,11 @@ mod topbar_fit_tests {
         let lead = LEAD_GUESS;
         let room = least_width_after(lead) - lead;
         let controls = RIGHT_CONTROLS_WIDTH + SPINNER_SIZE + ITEM_SPACING;
-        let fit = topbar_fit(room, controls, DEVICE + UPDATE, CHIP * 2.0);
+        // The device badge moved to the player; only the update badge is left.
+        let fit = topbar_fit(room, controls, UPDATE, CHIP);
         assert!(!fit.labels);
         assert_eq!(fit.search, SEARCH_MIN);
-        assert!(controls + CHIP * 2.0 + fit.search <= room);
+        assert!(controls + CHIP + fit.search <= room);
     }
 
     #[test]

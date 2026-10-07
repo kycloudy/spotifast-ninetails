@@ -62,13 +62,16 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ),
         );
     }
+    // The sidebar runs the window's full height, as Zeron's does; the
+    // player floats under the page and the panels beside it.
+    let fullscreen_lyrics = app.lyrics_fullscreen.is_some();
+    if !fullscreen_lyrics && app.settings.sidebar_visible {
+        sidebar::show(app, ui);
+    }
     player_bar::show(app, ui);
-    if app.lyrics_fullscreen.is_some() {
+    if fullscreen_lyrics {
         lyrics::fullscreen(app, ui);
     } else {
-        if app.settings.sidebar_visible {
-            sidebar::show(app, ui);
-        }
         if app.show_queue_panel {
             queue::side_panel(app, ui);
         }
@@ -245,6 +248,76 @@ fn page_image(app: &App, page: &Page, target: u32) -> Option<String> {
     }
 }
 
+/// What the top bar's pill calls the shown page, with its icon.
+pub(crate) fn page_label(app: &App) -> (Icon, String) {
+    use crate::i18n::gettext;
+    let locale = app.locale;
+    let named = |name: Option<&str>, fallback: std::borrow::Cow<'_, str>| {
+        name.filter(|name| !name.is_empty())
+            .map_or_else(|| fallback.into_owned(), str::to_owned)
+    };
+    match app.page() {
+        Page::Home => (Icon::House, gettext(locale, "Home").into_owned()),
+        Page::Search => (Icon::Search, gettext(locale, "Search").into_owned()),
+        Page::TopSongs => (
+            Icon::TrendingUp,
+            gettext(locale, "Your top songs").into_owned(),
+        ),
+        Page::LikedSongs => (Icon::Heart, gettext(locale, "Liked Songs").into_owned()),
+        Page::Albums => (Icon::Disc, gettext(locale, "Albums").into_owned()),
+        Page::Artists => (Icon::Users, gettext(locale, "Artists").into_owned()),
+        Page::Podcasts => (Icon::Headphones, gettext(locale, "Podcasts").into_owned()),
+        Page::Episodes => (Icon::Bookmark, gettext(locale, "Episodes").into_owned()),
+        Page::Playlist(id) => (
+            Icon::ListMusic,
+            named(
+                app.playlist_pages
+                    .get(id)
+                    .and_then(|page| page.playlist.get())
+                    .or_else(|| app.known_playlist(id))
+                    .map(|playlist| playlist.name.as_str()),
+                gettext(locale, "Playlist"),
+            ),
+        ),
+        Page::Album(id) => (
+            Icon::Disc,
+            named(
+                app.album_pages
+                    .get(id)
+                    .and_then(|page| page.album.get())
+                    .or_else(|| app.known_album(id))
+                    .map(|album| album.name.as_str()),
+                gettext(locale, "Album"),
+            ),
+        ),
+        Page::Artist(id) => (
+            Icon::User,
+            named(
+                app.artist_pages
+                    .get(id)
+                    .and_then(|page| page.artist.get())
+                    .or_else(|| app.known_artist(id))
+                    .map(|artist| artist.name.as_str()),
+                gettext(locale, "Artist"),
+            ),
+        ),
+        Page::Show(id) => (
+            Icon::Headphones,
+            named(
+                app.show_pages
+                    .get(id)
+                    .and_then(|page| page.show.get())
+                    .or_else(|| app.known_show(id))
+                    .map(|show| show.name.as_str()),
+                gettext(locale, "Podcast"),
+            ),
+        ),
+        Page::Radio(_) => (Icon::Radio, gettext(locale, "Radio").into_owned()),
+        Page::Queue => (Icon::ListVideo, gettext(locale, "Queue").into_owned()),
+        Page::Settings => (Icon::Settings, gettext(locale, "Settings").into_owned()),
+    }
+}
+
 fn page_tint(app: &mut App) -> Option<Color32> {
     let page = app.page().clone();
     if page == Page::LikedSongs {
@@ -280,7 +353,11 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
         .frame(Frame::new().fill(palette.window))
         .show(ui, |ui| {
             let rect = ui.max_rect();
-            let header = Rect::from_min_size(rect.min, vec2(rect.width(), 340.0));
+            // Home's search box sits inside the art, as Zeron's composer
+            // sits in its wallpaper, so Home's dither runs deeper and bolder.
+            let home = matches!(app.page(), Page::Home);
+            let header_height = if home { 420.0 } else { 340.0 };
+            let header = Rect::from_min_size(rect.min, vec2(rect.width(), header_height));
             let quiet = matches!(
                 app.page(),
                 Page::Home | Page::Search | Page::Settings | Page::Queue
@@ -292,7 +369,13 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
             }
             // The dots sit over the tint, softer on pages whose header is
             // only text, so titles stay easy to read.
-            let strength = if quiet { 0.26 } else { 0.36 };
+            let strength = if home {
+                0.34
+            } else if quiet {
+                0.26
+            } else {
+                0.36
+            };
             let loader = app.backend.art().clone();
             app.dither_hero.paint(
                 ui,
@@ -345,6 +428,9 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                 },
             );
             header_shadow(ui, scroll.inner_rect, scroll.state.offset.y, palette.dark);
+            if home {
+                home::next_up_pill(app, ui, scroll.inner_rect);
+            }
         });
 }
 

@@ -1,4 +1,5 @@
-//! The now-playing bar along the bottom of the window.
+//! The now-playing card that floats along the bottom of the page, inset
+//! from the window's edges as Zeron's composer is.
 
 use egui::{Align, Color32, Frame, Layout, Margin, Rect, Sense, UiBuilder, Vec2, pos2, vec2};
 
@@ -38,6 +39,13 @@ const SPECTRUM_GAP: f32 = 2.0;
 /// How often a moving visualizer is drawn: sixty times a second, as the
 /// mini player's.
 const VIS_FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
+/// The card's inset from the panel's edges, and its corner.
+const CARD_SIDE: f32 = 12.0;
+const CARD_TOP: f32 = 4.0;
+const CARD_BOTTOM: f32 = 12.0;
+const CARD_RADIUS: u8 = 16;
+/// The controls' inset inside the card.
+const CARD_PADDING: f32 = 12.0;
 
 /// Forget this bar's animation session while the sign-in screen is shown.
 pub(crate) fn end_tint_session(ctx: &egui::Context) {
@@ -51,16 +59,33 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         .exact_size(theme::PLAYER_BAR_HEIGHT)
         .resizable(false)
         .show_separator_line(false)
-        .frame(
-            Frame::new()
-                .fill(fill)
-                .inner_margin(Margin::symmetric(16, 0)),
-        )
+        .frame(Frame::new().fill(palette.window).inner_margin(Margin::ZERO))
         .show(ui, |ui| {
-            let rect = ui.max_rect();
+            let panel = ui.max_rect();
+            let card = Rect::from_min_max(
+                pos2(panel.left() + CARD_SIDE, panel.top() + CARD_TOP),
+                pos2(panel.right() - CARD_SIDE, panel.bottom() - CARD_BOTTOM),
+            );
+            ui.painter().add(
+                egui::epaint::Shadow {
+                    offset: [0, 8],
+                    blur: 24,
+                    spread: 0,
+                    color: palette.shadow.gamma_multiply(0.6),
+                }
+                .as_shape(card, egui::CornerRadius::same(CARD_RADIUS)),
+            );
+            ui.painter().rect(
+                card,
+                CARD_RADIUS,
+                fill,
+                egui::Stroke::new(1.0, palette.outline),
+                egui::StrokeKind::Inside,
+            );
+            let rect = card.shrink2(vec2(CARD_PADDING, 0.0));
             let now = app.now_playing();
-            // The whole bar, margins included, behind everything else.
-            let behind = rect.expand2(vec2(16.0, 0.0));
+            // The whole card behind everything else, kept off its corners.
+            let behind = card.shrink2(vec2(CARD_RADIUS as f32 / 2.0, 1.0));
             if visualizer(app, ui, behind, now.as_ref()) {
                 ui.ctx().request_repaint_after(VIS_FRAME);
             }
@@ -84,11 +109,6 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             if empty.clicked() {
                 app.actions.push(Action::CyclePlayerBarVis);
             }
-            ui.painter().hline(
-                rect.x_range(),
-                rect.top() + 0.5,
-                egui::Stroke::new(1.0, palette.outline),
-            );
             let width = rect.width();
             let side = (width * 0.3).clamp(200.0, 420.0);
             let cy = rect.center().y;
@@ -112,7 +132,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     .max_rect(right_band)
                     .layout(Layout::right_to_left(Align::Center)),
             );
-            extras(app, &mut right_ui, now.as_ref());
+            // In a narrow card the right end gives up the device's name and
+            // part of the volume slider before it reaches the controls.
+            extras(app, &mut right_ui, now.as_ref(), side < 280.0);
         });
 }
 
@@ -380,7 +402,7 @@ fn eased_fill(ctx: &egui::Context, panel: Color32, tint: Option<Color32>) -> Col
 fn now_playing_block(app: &mut App, ui: &mut egui::Ui, region: Rect, now: Option<&NowPlaying>) {
     let palette = app.palette;
     let cy = region.center().y;
-    let cover_rect = Rect::from_min_size(pos2(region.left() + 4.0, cy - 28.0), Vec2::splat(56.0));
+    let cover_rect = Rect::from_min_size(pos2(region.left(), cy - 22.0), Vec2::splat(44.0));
 
     let Some(now) = now else {
         super::widgets::paint_cover(ui, &palette, None, cover_rect, 6.0, Icon::Music, None);
@@ -419,6 +441,7 @@ fn now_playing_block(app: &mut App, ui: &mut egui::Ui, region: Rect, now: Option
         Icon::Music,
         Some(app.backend.art()),
     );
+    super::widgets::paint_cover_edge(ui, &palette, cover_rect, 6.0);
     let song = app.now_playing_item();
     let drag_sense = if song.is_some() {
         Sense::click_and_drag()
@@ -797,7 +820,88 @@ fn transport(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>, region:
     );
 }
 
-fn extras(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>) {
+/// Where the music plays, as a chip in Zeron's manner: the speaker alone
+/// while it plays here, and the device's name, in the accent, while it
+/// plays elsewhere and the card has room. A click opens the device list.
+fn device_chip(
+    app: &App,
+    ui: &mut egui::Ui,
+    now: Option<&NowPlaying>,
+    narrow: bool,
+) -> egui::Response {
+    let palette = app.palette;
+    let locale = app.locale;
+    let remote = now.filter(|now| !now.local);
+    let label = remote.filter(|_| !narrow).map(|now| {
+        now.device_name
+            .clone()
+            .unwrap_or_else(|| gettext(locale, "Playing on another device").into_owned())
+    });
+    let color = if remote.is_some() {
+        palette.accent
+    } else {
+        palette.secondary
+    };
+    let galley = label.as_ref().map(|label| {
+        let mut job =
+            egui::text::LayoutJob::simple_singleline(label.clone(), theme::medium(12.5), color);
+        job.wrap = egui::text::TextWrapping::truncate_at_width(140.0);
+        ui.painter().layout_job(job)
+    });
+    let width = galley.as_ref().map_or(30.0, |galley| {
+        8.0 + 14.0 + 6.0 + galley.size().x + 4.0 + 11.0 + 8.0
+    });
+    let (rect, response) = ui.allocate_exact_size(vec2(width, 28.0), Sense::click());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(
+            egui::WidgetType::Button,
+            ui.is_enabled(),
+            gettext(locale, "Connect to a device"),
+        )
+    });
+    if ui.is_rect_visible(rect) {
+        if response.hovered() {
+            ui.painter()
+                .rect_filled(rect, f32::from(theme::RADIUS_SMALL + 2), palette.surface);
+        }
+        let color = if response.hovered() && remote.is_none() {
+            palette.text
+        } else {
+            color
+        };
+        match galley {
+            Some(galley) => {
+                let mut x = rect.left() + 8.0;
+                Icon::Speaker.image(color, 14.0).paint_at(
+                    ui,
+                    Rect::from_min_size(pos2(x, rect.center().y - 7.0), Vec2::splat(14.0)),
+                );
+                x += 20.0;
+                let width = galley.size().x;
+                ui.painter().galley(
+                    pos2(x, rect.center().y - galley.size().y / 2.0),
+                    galley,
+                    color,
+                );
+                x += width + 4.0;
+                Icon::ChevronDown.image(color, 11.0).paint_at(
+                    ui,
+                    Rect::from_min_size(pos2(x, rect.center().y - 5.5), Vec2::splat(11.0)),
+                );
+            }
+            None => theme::paint_icon(ui, Icon::Speaker, rect, 18.0, color),
+        }
+    }
+    theme::focus_ring(ui, &response);
+    let tooltip = match remote.and_then(|now| now.device_name.as_deref()) {
+        // Translators: {device} is the name of the device playing the music.
+        Some(device) => gettext(locale, "Playing on {device}").replace("{device}", device),
+        None => gettext(locale, "Connect to a device").into_owned(),
+    };
+    response.on_hover_text(tooltip)
+}
+
+fn extras(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>, narrow: bool) {
     let palette = app.palette;
     ui.spacing_mut().item_spacing.x = 6.0;
     let volume = now
@@ -818,7 +922,7 @@ fn extras(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>) {
             egui::Id::new("volume-slider"),
             &gettext(app.locale, "Volume (%)"),
             shown as f32 / 100.0,
-            92.0,
+            if narrow { 60.0 } else { 92.0 },
             Some(0.05),
         ) {
             SliderEvent::Dragging(value) => {
@@ -871,19 +975,7 @@ fn extras(app: &mut App, ui: &mut egui::Ui, now: Option<&NowPlaying>) {
         ));
     }
     ui.add_space(4.0);
-    let remote = now.is_some_and(|now| !now.local);
-    let devices = theme::icon_button(
-        ui,
-        Icon::Speaker,
-        18.0,
-        if remote {
-            palette.accent
-        } else {
-            palette.secondary
-        },
-        palette.text,
-        &gettext(app.locale, "Connect to a device"),
-    );
+    let devices = device_chip(app, ui, now, narrow);
     ui.ctx().data_mut(|data| {
         data.insert_temp(egui::Id::new(super::devices::BUTTON_RECT_ID), devices.rect)
     });
