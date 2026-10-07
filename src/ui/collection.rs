@@ -67,15 +67,21 @@ pub(super) fn hero(app: &mut App, ui: &mut egui::Ui, hero: Hero<'_>) {
         .thumbnail
         .and_then(|uri| app.softened_covers.texture(ui.ctx(), &art, uri));
     ui.add_space(12.0);
+    // Zeron's measure: a cover that frames the title rather than
+    // outweighing it.
     let cover_size = if ui.available_width() > 720.0 {
-        212.0
+        176.0
     } else {
-        160.0
+        144.0
     };
     ui.horizontal(|ui| {
-        ui.spacing_mut().item_spacing.x = 24.0;
+        ui.spacing_mut().item_spacing.x = 28.0;
         let (rect, _) = ui.allocate_exact_size(Vec2::splat(cover_size), Sense::hover());
-        let radius = if hero.round { cover_size / 2.0 } else { 6.0 };
+        let radius = if hero.round {
+            cover_size / 2.0
+        } else {
+            f32::from(theme::RADIUS)
+        };
         widgets::paint_shadow(ui, &palette, rect, radius);
         if hero.liked {
             super::sidebar::liked_cover(ui, rect, radius);
@@ -95,26 +101,28 @@ pub(super) fn hero(app: &mut App, ui: &mut egui::Ui, hero: Hero<'_>) {
                 if hero.round { Icon::User } else { Icon::Music },
                 Some(app.backend.art()),
             );
+            widgets::paint_cover_edge(ui, &palette, rect, radius);
         }
         ui.vertical(|ui| {
             let width = ui.available_width();
             ui.set_width(width);
             ui.spacing_mut().item_spacing.y = 6.0;
-            ui.add_space(cover_size * 0.08);
-            theme::text(ui, hero.kind.as_ref(), theme::medium(12.5), palette.text);
-            let mut size = if cover_size > 200.0 { 56.0 } else { 40.0 };
+            ui.add_space(cover_size * 0.12);
+            // In the text colour: the label sits on the header's dots.
+            theme::text(ui, hero.kind.as_ref(), theme::regular(13.0), palette.text);
+            let mut size = if cover_size > 160.0 { 40.0 } else { 32.0 };
             loop {
                 let galley = ui.painter().layout_no_wrap(
                     hero.title.to_string(),
-                    theme::bold(size),
+                    theme::semibold(size),
                     palette.text,
                 );
                 if galley.size().x <= width || size <= 22.0 {
                     break;
                 }
-                size -= 6.0;
+                size -= 4.0;
             }
-            theme::text(ui, hero.title, theme::bold(size), palette.text);
+            theme::text(ui, hero.title, theme::semibold(size), palette.text);
             if let Some(description) = &hero.description
                 && !description.is_empty()
             {
@@ -129,17 +137,16 @@ pub(super) fn hero(app: &mut App, ui: &mut egui::Ui, hero: Hero<'_>) {
                 ui.spacing_mut().item_spacing.x = 4.0;
                 for (index, (text, page)) in hero.byline.iter().enumerate() {
                     if index > 0 {
-                        theme::text(ui, "•", theme::regular(13.5), palette.secondary);
+                        theme::text(ui, "·", theme::regular(13.0), palette.secondary);
                     }
                     match page {
                         Some(page) => {
-                            if theme::link(ui, text, theme::semibold(13.5), palette.text).clicked()
-                            {
+                            if theme::link(ui, text, theme::medium(13.0), palette.text).clicked() {
                                 app.actions.push(Action::Open(page.clone()));
                             }
                         }
                         None => {
-                            theme::text(ui, text, theme::regular(13.5), palette.secondary);
+                            theme::text(ui, text, theme::regular(13.0), palette.secondary);
                         }
                     }
                 }
@@ -194,9 +201,9 @@ pub fn actions_row(
             if app.play_pending(uri) {
                 theme::circle_spinner(
                     ui,
-                    56.0,
-                    palette.accent,
-                    palette.on_accent,
+                    44.0,
+                    palette.solid(),
+                    palette.on_solid(),
                     &gettext(locale, "Starting…"),
                 );
             } else if ui
@@ -204,10 +211,10 @@ pub fn actions_row(
                     theme::circle_button(
                         ui,
                         icon,
-                        56.0,
-                        palette.accent,
-                        palette.accent_hover,
-                        palette.on_accent,
+                        44.0,
+                        palette.solid(),
+                        palette.solid_hover(),
+                        palette.on_solid(),
                         &if now_playing_here {
                             gettext(locale, "Pause")
                         } else {

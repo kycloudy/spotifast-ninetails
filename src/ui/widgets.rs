@@ -1333,18 +1333,20 @@ fn track_row_contents(
         // color so selecting a song does not mark it as playing.
         ui.painter().rect_filled(
             rect,
-            CornerRadius::same(6),
+            CornerRadius::same(theme::RADIUS - 2),
             palette
                 .secondary
                 .gamma_multiply(if hovered { 0.30 } else { 0.20 }),
         );
     } else if hovered {
-        ui.painter().rect_filled(
-            rect,
-            CornerRadius::same(6),
-            palette
-                .surface_hover
-                .gamma_multiply(if palette.dark { 0.7 } else { 1.0 }),
+        ui.painter()
+            .rect_filled(rect, CornerRadius::same(theme::RADIUS - 2), palette.surface);
+    } else if !row.thin {
+        // Zeron divides a list with hairlines rather than stripes.
+        ui.painter().hline(
+            rect.x_range().shrink(8.0),
+            rect.bottom() - 0.5,
+            Stroke::new(1.0, palette.outline.gamma_multiply(0.6)),
         );
     }
     // The row highlight also shows keyboard focus. Do not add an outline
@@ -1376,14 +1378,14 @@ fn track_row_contents(
             let color = if is_current {
                 palette.accent
             } else {
-                palette.secondary
+                palette.dim
             };
             let label = row.number.unwrap_or(row.index + 1).to_string();
             painter.text(
                 cell.center(),
                 egui::Align2::CENTER_CENTER,
                 label,
-                theme::regular(14.0),
+                theme::regular(13.0),
                 color,
             );
         }
@@ -1401,7 +1403,7 @@ fn track_row_contents(
             &palette,
             row.item.image(64),
             cover_rect,
-            4.0,
+            6.0,
             if row.item.is_track() {
                 Icon::Music
             } else {
@@ -1409,13 +1411,14 @@ fn track_row_contents(
             },
             Some(app.backend.art()),
         );
+        paint_cover_edge(ui, &palette, cover_rect, 6.0);
         // Without a number column the cover carries the play control:
         // hover shows it, a click uses it, and what plays shows there.
         if cols.number == 0.0 {
             let scrim = |alpha: u8| {
                 painter.rect_filled(
                     cover_rect,
-                    CornerRadius::same(4),
+                    CornerRadius::same(6),
                     Color32::from_black_alpha(alpha),
                 );
             };
@@ -2433,9 +2436,9 @@ pub fn card(
                     Icon::PlayFilled
                 },
                 44.0,
-                palette.accent,
-                palette.accent_hover,
-                palette.on_accent,
+                palette.solid(),
+                palette.solid_hover(),
+                palette.on_solid(),
                 &gettext(app.locale, if playing { "Pause" } else { "Play" }),
             )
             .clicked();
@@ -2782,6 +2785,89 @@ pub fn text_edit(ui: &mut Ui, locale: Locale, edit: egui::TextEdit<'_>) -> egui:
 }
 
 /// A text field with a leading search icon.
+/// A quiet tab in a row of choices, as Zeron draws its view switches: the
+/// chosen one sits on a soft fill, the others are text until hovered.
+pub fn tab_button(ui: &mut Ui, palette: &Palette, label: &str, selected: bool) -> egui::Response {
+    let color = if selected {
+        palette.text
+    } else {
+        palette.secondary
+    };
+    let galley = crate::bidi::layout_line(ui.painter(), label, theme::medium(12.5), color);
+    let size = vec2(galley.size().x + 18.0, 26.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    response.widget_info(|| {
+        egui::WidgetInfo::selected(egui::WidgetType::Button, ui.is_enabled(), selected, label)
+    });
+    if ui.is_rect_visible(rect) {
+        let fill = if selected {
+            Some(palette.surface_active)
+        } else if response.hovered() {
+            Some(palette.surface)
+        } else {
+            None
+        };
+        if let Some(fill) = fill {
+            ui.painter()
+                .rect_filled(rect, f32::from(theme::RADIUS_SMALL + 2), fill);
+        }
+        let color = if response.hovered() {
+            palette.text
+        } else {
+            color
+        };
+        ui.painter().galley(
+            pos2(rect.left() + 9.0, rect.center().y - galley.size().y / 2.0),
+            galley,
+            color,
+        );
+    }
+    theme::focus_ring(ui, &response);
+    response
+}
+
+/// The thin edge Zeron draws around artwork, so a dark cover keeps its
+/// shape on a dark page and a pale one on a light page.
+pub fn paint_cover_edge(ui: &Ui, palette: &Palette, rect: Rect, radius: f32) {
+    let edge = if palette.dark {
+        Color32::from_white_alpha(24)
+    } else {
+        Color32::from_black_alpha(20)
+    };
+    ui.painter().rect_stroke(
+        rect,
+        radius,
+        Stroke::new(1.0, edge),
+        egui::StrokeKind::Inside,
+    );
+}
+
+/// The height of every search field.
+pub const SEARCH_FIELD_HEIGHT: f32 = 32.0;
+
+/// Names a search field's keyboard shortcut at the right end of `rect`,
+/// the well [`search_field_in`] drew, where its hint still has room.
+pub fn search_shortcut_hint(ui: &Ui, palette: &Palette, rect: Rect, shortcut: &str) {
+    let galley = ui
+        .painter()
+        .layout_no_wrap(shortcut.to_owned(), theme::medium(11.0), palette.dim);
+    let size = galley.size() + vec2(10.0, 4.0);
+    let chip = Rect::from_min_size(
+        pos2(rect.right() - 8.0 - size.x, rect.center().y - size.y / 2.0),
+        size,
+    );
+    if chip.left() > rect.left() + 90.0 {
+        ui.painter().rect_stroke(
+            chip,
+            4.0,
+            Stroke::new(1.0, palette.outline),
+            egui::StrokeKind::Inside,
+        );
+        ui.painter()
+            .galley(chip.min + vec2(5.0, 2.0), galley, palette.dim);
+    }
+}
+
 pub fn search_field(
     ui: &mut Ui,
     palette: &Palette,
@@ -2791,7 +2877,21 @@ pub fn search_field(
     hint: &str,
     width: f32,
 ) -> egui::Response {
-    let height = 34.0;
+    search_field_in(ui, palette, locale, id, text, hint, width).0
+}
+
+/// A [`search_field`] and the rect of its whole well.
+pub fn search_field_in(
+    ui: &mut Ui,
+    palette: &Palette,
+    locale: Locale,
+    id: egui::Id,
+    text: &mut String,
+    hint: &str,
+    width: f32,
+) -> (egui::Response, Rect) {
+    // Zeron's quiet field: a soft rounded well, no outline until focused.
+    let height = SEARCH_FIELD_HEIGHT;
     let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
     let has_focus = ui.memory(|memory| memory.has_focus(id));
     let fill = if has_focus {
@@ -2799,22 +2899,23 @@ pub fn search_field(
     } else {
         palette.surface
     };
-    ui.painter().rect_filled(rect, height / 2.0, fill);
+    let corner = f32::from(theme::RADIUS - 2);
+    ui.painter().rect_filled(rect, corner, fill);
     if has_focus {
         ui.painter().rect_stroke(
             rect,
-            height / 2.0,
-            Stroke::new(1.5, palette.text.gamma_multiply(0.6)),
+            corner,
+            Stroke::new(1.0, palette.accent.gamma_multiply(0.7)),
             egui::StrokeKind::Inside,
         );
     }
     let icon_rect =
-        Rect::from_center_size(pos2(rect.left() + 18.0, rect.center().y), Vec2::splat(16.0));
+        Rect::from_center_size(pos2(rect.left() + 16.0, rect.center().y), Vec2::splat(14.0));
     Icon::Search
-        .image(palette.secondary, 16.0)
+        .image(palette.secondary, 14.0)
         .paint_at(ui, icon_rect);
     let field_rect = Rect::from_min_max(
-        pos2(rect.left() + 34.0, rect.top() + 1.0),
+        pos2(rect.left() + 30.0, rect.top() + 1.0),
         pos2(rect.right() - 30.0, rect.bottom() - 1.0),
     );
     let mut child = ui.new_child(
@@ -2830,7 +2931,7 @@ pub fn search_field(
             .painter()
             .layout_job(egui::text::LayoutJob::simple_singleline(
                 buffer.as_str().to_owned(),
-                theme::regular(14.0),
+                theme::regular(13.5),
                 text_color,
             ));
         crate::bidi::reorder(&mut galley);
@@ -2842,7 +2943,7 @@ pub fn search_field(
         egui::TextEdit::singleline(text)
             .id(id)
             .hint_text(egui::RichText::new(hint).color(palette.dim))
-            .font(theme::regular(14.0))
+            .font(theme::regular(13.5))
             .text_color(palette.text)
             .frame(egui::Frame::NONE)
             .desired_width(field_rect.width())
@@ -2875,7 +2976,7 @@ pub fn search_field(
             ui.memory_mut(|memory| memory.request_focus(id));
         }
     }
-    response
+    (response, rect)
 }
 
 /// A toggle drawn as a switch.
@@ -3816,9 +3917,7 @@ mod tests {
                             .secondary
                             .gamma_multiply(if focused { 0.30 } else { 0.20 })
                     } else {
-                        palette
-                            .surface_hover
-                            .gamma_multiply(if palette.dark { 0.7 } else { 1.0 })
+                        palette.surface
                     }]
                 );
                 if focused {
@@ -3831,7 +3930,7 @@ mod tests {
                         {
                             shape.stroke == Stroke::NONE
                                 && (shape.rect != rect
-                                    || shape.corner_radius == CornerRadius::same(6))
+                                    || shape.corner_radius == CornerRadius::same(theme::RADIUS - 2))
                         }
                         _ => true,
                     }),
