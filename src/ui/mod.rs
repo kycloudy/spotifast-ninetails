@@ -209,41 +209,48 @@ where
     }
 }
 
-fn page_tint(app: &mut App) -> Option<Color32> {
-    let page = app.page().clone();
-    let image = match &page {
+/// The page's own cover, at `target` width, when it has one.
+fn page_image(app: &App, page: &Page, target: u32) -> Option<String> {
+    match page {
         Page::Playlist(id) => app
             .playlist_pages
             .get(id)
             .and_then(|page| page.playlist.get())
             .or_else(|| app.known_playlist(id))
-            .and_then(|playlist| pick_image(&playlist.images, 64))
+            .and_then(|playlist| pick_image(&playlist.images, target))
             .map(str::to_string),
         Page::Album(id) => app
             .album_pages
             .get(id)
             .and_then(|page| page.album.get())
             .or_else(|| app.known_album(id))
-            .and_then(|album| pick_image(&album.images, 64))
+            .and_then(|album| pick_image(&album.images, target))
             .map(str::to_string),
         Page::Artist(id) => app
             .artist_pages
             .get(id)
             .and_then(|page| page.artist.get())
             .or_else(|| app.known_artist(id))
-            .and_then(|artist| pick_image(&artist.images, 64))
+            .and_then(|artist| pick_image(&artist.images, target))
             .map(str::to_string),
         Page::Show(id) => app
             .show_pages
             .get(id)
             .and_then(|page| page.show.get())
             .or_else(|| app.known_show(id))
-            .and_then(|show| pick_image(&show.images, 64))
+            .and_then(|show| pick_image(&show.images, target))
             .map(str::to_string),
-        Page::Radio(seed) => pick_image(&app.radio_images(seed), 64).map(str::to_string),
-        Page::LikedSongs => return Some(Color32::from_rgb(0x50, 0x38, 0xc8)),
+        Page::Radio(seed) => pick_image(&app.radio_images(seed), target).map(str::to_string),
         _ => None,
-    };
+    }
+}
+
+fn page_tint(app: &mut App) -> Option<Color32> {
+    let page = app.page().clone();
+    if page == Page::LikedSongs {
+        return Some(Color32::from_rgb(0x50, 0x38, 0xc8));
+    }
+    let image = page_image(app, &page, 64);
     if !app.settings.accent_from_art && image.is_some() {
         return None;
     }
@@ -253,26 +260,48 @@ fn page_tint(app: &mut App) -> Option<Color32> {
     }
 }
 
+/// The art dithered behind the page's header: its own cover, else the
+/// playing song's. None when art colours are off or the dither is.
+fn page_dither_art(app: &App) -> Option<String> {
+    if !app.settings.dither_headers || !app.settings.accent_from_art {
+        return None;
+    }
+    page_image(app, app.page(), 640).or_else(|| {
+        let now = app.now_playing()?;
+        now.art_url.or(now.art_small)
+    })
+}
+
 fn central(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let tint = page_tint(app);
+    let dither_art = page_dither_art(app);
     egui::CentralPanel::default()
         .frame(Frame::new().fill(palette.window))
         .show(ui, |ui| {
             let rect = ui.max_rect();
+            let header = Rect::from_min_size(rect.min, vec2(rect.width(), 340.0));
+            let quiet = matches!(
+                app.page(),
+                Page::Home | Page::Search | Page::Settings | Page::Queue
+            );
             if let Some(tint) = tint {
-                let strength = if matches!(
-                    app.page(),
-                    Page::Home | Page::Search | Page::Settings | Page::Queue
-                ) {
-                    0.45
-                } else {
-                    0.85
-                };
+                let strength = if quiet { 0.45 } else { 0.85 };
                 let top = blend(palette.window, tint, strength);
-                let header = Rect::from_min_size(rect.min, vec2(rect.width(), 340.0));
                 widgets::paint_vertical_gradient(ui, header, top, palette.window);
             }
+            // The dots sit over the tint, softer on pages whose header is
+            // only text, so titles stay easy to read.
+            let strength = if quiet { 0.26 } else { 0.36 };
+            let loader = app.backend.art().clone();
+            app.dither_hero.paint(
+                ui,
+                &loader,
+                dither_art.as_deref(),
+                header,
+                palette.dark,
+                strength,
+            );
             ui.spacing_mut().item_spacing = vec2(8.0, 6.0);
             // egui fades a scrolled page's edge into the panel's plain
             // colour, which shows as a pale band over a cover's tint; the
