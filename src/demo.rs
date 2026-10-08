@@ -3012,7 +3012,7 @@ mod tests {
         app.backend.shutdown();
     }
 
-    /// The Ninetail wordmark takes the sidebar search field's place on Home,
+    /// The Ninetale wordmark takes the sidebar search field's place on Home,
     /// where Home's own box does the searching, and nowhere else.
     #[test]
     fn the_wordmark_shows_on_home_only() {
@@ -3021,7 +3021,7 @@ mod tests {
         let has_wordmark = |tree: &egui::accesskit::TreeUpdate| {
             tree.nodes
                 .iter()
-                .any(|(_, node)| node.label() == Some("Ninetail") && node.role() == Role::Image)
+                .any(|(_, node)| node.label() == Some("Ninetale") && node.role() == Role::Image)
         };
         app.open(Page::Home);
         accessible_frame(&ctx, &mut app, vec![]);

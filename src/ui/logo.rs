@@ -1,10 +1,14 @@
-//! The Ninetail wordmark above the sidebar's Home row, on Home.
+//! The Ninetale wordmark above the sidebar's Home row, on Home.
 //!
-//! `assets/logo/ninetail.png` is the design's dot grid, one pixel per dot:
-//! letters dense at the top that thin out toward the bottom. Scaled to the
-//! bar, those dots would blur or shimmer, so the wordmark is dithered again
-//! for the screen, one dot per physical pixel. Each letter keeps its edge,
-//! and inside it the dots follow how densely the design fills that spot.
+//! `assets/logo/ninetale.png` is the design's animation, one pixel per dot
+//! and its 24 frames stacked top to bottom: a band of solid dots sweeps
+//! across the letters while the rest thin out. Scaled to the sidebar, those
+//! dots would blur or shimmer, so each frame is dithered again for the
+//! screen, one dot per physical pixel. Each letter keeps its edge, and
+//! inside it the dots follow how densely the frame fills that spot.
+//!
+//! The wordmark moves only while the window has focus, so an idle app in
+//! the background never wakes to draw it.
 //!
 //! The texture is white and painted in the theme's text colour, so it is
 //! ink on a light theme and light on a dark one, as the design shows.
@@ -17,37 +21,47 @@ use crate::theme::Palette;
 
 /// The wordmark's height on screen.
 pub const HEIGHT: f32 = 20.0;
+/// The design's frames and how long each shows.
+const FRAMES: usize = 24;
+const FRAME_SECONDS: f64 = 0.08;
 
 const BAYER: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
 /// Each screen pixel is judged from this many samples a side.
 const SUBSAMPLES: usize = 4;
 
-/// The design's dots, with the letters' outlines and how densely each spot
-/// is filled worked out from them.
+/// The design's dots, with the letters' outlines and how densely each
+/// frame fills each spot worked out from them.
 struct Design {
     width: usize,
     height: usize,
-    /// 1 inside a letter, 0 outside: the dots with the gaps between
-    /// neighbours closed.
+    /// 1 inside a letter, 0 outside: every frame's dots together, with the
+    /// gaps between neighbours closed. The letters never move, so one
+    /// outline serves every frame, even one whose dots are sparse.
     shape: Vec<f32>,
-    /// The share of a letter's dots lit around each dot, 0 to 1.
-    density: Vec<f32>,
+    /// For each frame, the share of a letter's dots lit around each dot,
+    /// 0 to 1.
+    density: Vec<Vec<f32>>,
 }
 
 impl Design {
     fn load() -> &'static Self {
         static DESIGN: OnceLock<Design> = OnceLock::new();
         DESIGN.get_or_init(|| {
-            let image = image::load_from_memory(include_bytes!("../../assets/logo/ninetail.png"))
+            let image = image::load_from_memory(include_bytes!("../../assets/logo/ninetale.png"))
                 .expect("the bundled wordmark decodes")
                 .to_luma_alpha8();
-            let (width, height) = (image.width() as usize, image.height() as usize);
-            let dots = image.pixels().map(|pixel| pixel[1] > 127).collect();
-            Self::from_dots(width, height, dots)
+            let (width, height) = (image.width() as usize, image.height() as usize / FRAMES);
+            let dots: Vec<bool> = image.pixels().map(|pixel| pixel[1] > 127).collect();
+            let frames = dots
+                .chunks(width * height)
+                .take(FRAMES)
+                .map(<[bool]>::to_vec)
+                .collect();
+            Self::from_frames(width, height, frames)
         })
     }
 
-    fn from_dots(width: usize, height: usize, dots: Vec<bool>) -> Self {
+    fn from_frames(width: usize, height: usize, frames: Vec<Vec<bool>>) -> Self {
         let at = |grid: &[bool], x: isize, y: isize| {
             x >= 0
                 && y >= 0
@@ -58,22 +72,30 @@ impl Design {
         let around = |x: usize, y: usize| {
             (-1..=1).flat_map(move |dy| (-1..=1).map(move |dx| (x as isize + dx, y as isize + dy)))
         };
+        let all: Vec<bool> = (0..width * height)
+            .map(|index| frames.iter().any(|dots| dots[index]))
+            .collect();
         // Closing: grow every dot by one, then shrink back, which fills the
         // dither's gaps but keeps each letter's outline.
         let grown: Vec<bool> = (0..width * height)
-            .map(|index| around(index % width, index / width).any(|(x, y)| at(&dots, x, y)))
+            .map(|index| around(index % width, index / width).any(|(x, y)| at(&all, x, y)))
             .collect();
         let shape: Vec<bool> = (0..width * height)
             .map(|index| around(index % width, index / width).all(|(x, y)| at(&grown, x, y)))
             .collect();
-        let density = (0..width * height)
-            .map(|index| {
-                let (x, y) = (index % width, index / width);
-                let inside = around(x, y).filter(|&(x, y)| at(&shape, x, y)).count();
-                let lit = around(x, y)
-                    .filter(|&(x, y)| at(&shape, x, y) && at(&dots, x, y))
-                    .count();
-                lit as f32 / inside.max(1) as f32
+        let density = frames
+            .iter()
+            .map(|dots| {
+                (0..width * height)
+                    .map(|index| {
+                        let (x, y) = (index % width, index / width);
+                        let inside = around(x, y).filter(|&(x, y)| at(&shape, x, y)).count();
+                        let lit = around(x, y)
+                            .filter(|&(x, y)| at(&shape, x, y) && at(dots, x, y))
+                            .count();
+                        lit as f32 / inside.max(1) as f32
+                    })
+                    .collect()
             })
             .collect();
         Self {
@@ -92,8 +114,10 @@ impl Design {
         (rows as f32 * self.width as f32 / self.height as f32).round() as usize
     }
 
-    /// The wordmark `rows` pixels tall, white dots on transparent.
-    fn raster(&self, rows: usize) -> ColorImage {
+    /// Frame `frame` of the wordmark `rows` pixels tall, white dots on
+    /// transparent.
+    fn raster(&self, frame: usize, rows: usize) -> ColorImage {
+        let density_of = &self.density[frame];
         let rows = rows.max(1);
         let columns = self.columns(rows).max(1);
         let scale_x = self.width as f32 / columns as f32;
@@ -109,7 +133,7 @@ impl Design {
                         let index = (y as usize).min(self.height - 1) * self.width
                             + (x as usize).min(self.width - 1);
                         shape += self.shape[index];
-                        density += self.density[index] * self.shape[index];
+                        density += density_of[index] * self.shape[index];
                     }
                 }
                 if shape < (SUBSAMPLES * SUBSAMPLES) as f32 / 2.0 {
@@ -143,27 +167,39 @@ pub fn show(ui: &mut egui::Ui, palette: &Palette) -> egui::Response {
     let (rect, response) = ui.allocate_exact_size(points, Sense::hover());
     ui.ctx().accesskit_node_builder(response.id, |node| {
         node.set_role(egui::accesskit::Role::Image);
-        node.set_label("Ninetail");
+        node.set_label("Ninetale");
     });
     if !ui.is_rect_visible(rect) {
         return response;
     }
-    let id = egui::Id::new("ninetail-logo");
-    let texture = ui
+    let id = egui::Id::new("ninetale-logo");
+    let textures = ui
         .ctx()
-        .data(|data| data.get_temp::<(usize, TextureHandle)>(id))
+        .data(|data| data.get_temp::<(usize, Vec<TextureHandle>)>(id))
         .filter(|(made_for, _)| *made_for == rows)
-        .map(|(_, texture)| texture)
+        .map(|(_, textures)| textures)
         .unwrap_or_else(|| {
-            let texture = ui.ctx().load_texture(
-                "ninetail-logo",
-                Design::load().raster(rows),
-                TextureOptions::NEAREST,
-            );
+            let textures: Vec<TextureHandle> = (0..FRAMES)
+                .map(|frame| {
+                    ui.ctx().load_texture(
+                        format!("ninetale-logo-{frame}"),
+                        Design::load().raster(frame, rows),
+                        TextureOptions::NEAREST,
+                    )
+                })
+                .collect();
             ui.ctx()
-                .data_mut(|data| data.insert_temp(id, (rows, texture.clone())));
-            texture
+                .data_mut(|data| data.insert_temp(id, (rows, textures.clone())));
+            textures
         });
+    let (time, focused) = ui.input(|input| (input.time, input.focused));
+    let step = time / FRAME_SECONDS;
+    let texture = &textures[step as usize % FRAMES];
+    if focused {
+        let next = (step.floor() + 1.0 - step) * FRAME_SECONDS;
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f64(next.max(0.001)));
+    }
     // On whole physical pixels, so each dot is exactly one.
     let min = pos2((rect.min.x * ppp).round(), (rect.min.y * ppp).round()) / ppp;
     ui.painter().image(
@@ -186,11 +222,13 @@ mod tests {
     #[test]
     fn the_bundled_design_is_the_wordmark_dot_grid() {
         let design = Design::load();
-        assert_eq!((design.width, design.height), (249, 51));
+        assert_eq!((design.width, design.height), (271, 51));
+        assert_eq!(design.density.len(), FRAMES);
         assert!(
             design
                 .density
                 .iter()
+                .flatten()
                 .all(|value| (0.0..=1.0).contains(value))
         );
     }
@@ -199,12 +237,12 @@ mod tests {
     /// screen's scale, keeps the design's proportions, and is never empty.
     #[test]
     fn the_wordmark_is_dithered_for_each_screen_scale() {
-        for ppp in [1.0, 1.25, 1.5, 2.0, 3.0] {
+        for (ppp, frame) in [(1.0, 0), (1.25, 5), (1.5, 11), (2.0, 17), (3.0, 23)] {
             let (points, rows) = size(ppp);
-            let image = Design::load().raster(rows);
+            let image = Design::load().raster(frame, rows);
             assert_eq!(image.size[1], rows);
             assert!((points.y - HEIGHT).abs() <= 0.5 / ppp, "{ppp}: {points:?}");
-            assert!((image.size[0] as f32 / rows as f32 - 249.0 / 51.0).abs() < 0.05);
+            assert!((image.size[0] as f32 / rows as f32 - 271.0 / 51.0).abs() < 0.05);
             let share = lit(&image) as f32 / image.pixels.len() as f32;
             assert!((0.1..0.6).contains(&share), "{ppp}: {share}");
             assert!(
@@ -216,18 +254,25 @@ mod tests {
         }
     }
 
-    /// As in the design, the letters are dense at the top and thin out
-    /// toward the bottom.
+    /// As in the design, a band of solid dots sweeps across the letters:
+    /// the "N" is dense early in the loop and sparse after the band has
+    /// passed, and the final "e" is sparse midway and dense at the end.
     #[test]
-    fn the_dots_thin_out_toward_the_bottom() {
-        let image = Design::load().raster(52);
-        let [columns, rows] = image.size;
-        let band = |from: usize, to: usize| {
-            image.pixels[from * columns..to * columns]
-                .iter()
-                .filter(|pixel| pixel.a() > 0)
+    fn the_dense_band_sweeps_across_the_letters() {
+        let lit_in = |frame: usize, from: f32, to: f32| {
+            let image = Design::load().raster(frame, 52);
+            let [columns, rows] = image.size;
+            let (from, to) = (
+                (from * columns as f32) as usize,
+                (to * columns as f32) as usize,
+            );
+            (0..rows)
+                .flat_map(|row| (from..to).map(move |column| row * columns + column))
+                .filter(|&index| image.pixels[index].a() > 0)
                 .count()
         };
-        assert!(band(rows / 4, rows / 2) > band(rows * 3 / 4, rows));
+        let (n, e) = ((0.0, 0.15), (0.85, 1.0));
+        assert!(lit_in(5, n.0, n.1) > lit_in(18, n.0, n.1));
+        assert!(lit_in(23, e.0, e.1) > lit_in(14, e.0, e.1));
     }
 }
