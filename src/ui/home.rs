@@ -16,7 +16,7 @@ use super::widgets::{self, TrackRow};
 /// dithered art.
 const SEARCH_BOX_WIDTH: f32 = 640.0;
 const SEARCH_BOX_TOP: f32 = 96.0;
-/// The scopes the search box offers; the search page has the rest.
+/// The scopes a narrow search box offers; a wide one offers them all.
 const SEARCH_SCOPES: [SearchFilter; 5] = [
     SearchFilter::All,
     SearchFilter::Songs,
@@ -28,6 +28,13 @@ const SEARCH_SCOPES: [SearchFilter; 5] = [
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
     ui.add_space(SEARCH_BOX_TOP);
     search_box(app, ui);
+    // With words in the box, Home is the search: its results take the place
+    // of the shelves until the box is cleared.
+    if app.search.from_home && !app.search.query.trim().is_empty() {
+        ui.add_space(28.0);
+        super::search::results(app, ui);
+        return;
+    }
     ui.add_space(40.0);
     quick_access(app, ui);
     ui.add_space(16.0);
@@ -47,9 +54,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
 /// Zeron's composer as Spotify's search: a greeting, a wide box to type
 /// into with the scopes under it, and the last searches beneath.
 ///
-/// Typing here starts a search and hands the field to the sidebar's (or
-/// the bar's) search, which the search page keeps, so the words carry on
-/// where the results are.
+/// Home is searched here, not in the sidebar: typing searches after the
+/// usual pause, Enter at once, and the results appear on Home itself.
 fn search_box(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let locale = app.locale;
@@ -90,12 +96,19 @@ fn search_box(app: &mut App, ui: &mut egui::Ui) {
             .max_rect(field)
             .layout(egui::Layout::left_to_right(egui::Align::Center)),
     );
-    let before = app.search.query.clone();
+    // The box holds the current search only when it was made here; one
+    // made in the sidebar on another page leaves the box empty.
+    let mut text = if app.search.from_home {
+        app.search.query.clone()
+    } else {
+        String::new()
+    };
+    let before = text.clone();
     let hint = gettext(locale, "What do you want to play?");
     let response = widgets::text_edit(
         &mut field_ui,
         locale,
-        egui::TextEdit::singleline(&mut app.search.query)
+        egui::TextEdit::singleline(&mut text)
             .id(id)
             .hint_text(egui::RichText::new(hint.as_ref()).color(palette.dim))
             .font(theme::regular(15.0))
@@ -105,9 +118,17 @@ fn search_box(app: &mut App, ui: &mut egui::Ui) {
     );
     ui.ctx()
         .accesskit_node_builder(response.id, |node| node.set_label(hint.as_ref()));
-    if app.search.query != before && !app.search.query.is_empty() {
+    if app.search.focus_requested {
+        app.search.focus_requested = false;
+        response.request_focus();
+    }
+    if text != before {
+        app.search.query = text.clone();
+        app.search.from_home = true;
         app.search.typed_at = Some(std::time::Instant::now());
-        app.actions.push(Action::FocusSearch);
+    }
+    if response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+        response.surrender_focus();
     }
     let submit = response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
 
@@ -121,7 +142,12 @@ fn search_box(app: &mut App, ui: &mut egui::Ui) {
             .layout(egui::Layout::left_to_right(egui::Align::Center)),
     );
     tabs.spacing_mut().item_spacing.x = 2.0;
-    for scope in SEARCH_SCOPES {
+    let scopes: &[SearchFilter] = if width >= 600.0 {
+        &SearchFilter::ALL
+    } else {
+        &SEARCH_SCOPES
+    };
+    for &scope in scopes {
         let label = scope.label(locale);
         if widgets::tab_button(&mut tabs, &palette, &label, app.search.filter == scope).clicked() {
             app.actions.push(Action::SetSearchFilter(scope));
@@ -141,8 +167,25 @@ fn search_box(app: &mut App, ui: &mut egui::Ui) {
         palette.on_solid(),
         &gettext(locale, "Search"),
     );
-    if (go.clicked() || submit) && !app.search.query.trim().is_empty() {
-        app.actions.push(Action::Search(app.search.query.clone()));
+    if !text.is_empty() {
+        end.add_space(4.0);
+        if theme::icon_button(
+            &mut end,
+            Icon::X,
+            15.0,
+            palette.secondary,
+            palette.text,
+            &gettext(locale, "Clear"),
+        )
+        .clicked()
+        {
+            app.search.query.clear();
+            app.search.typed_at = Some(std::time::Instant::now());
+            response.request_focus();
+        }
+    }
+    if (go.clicked() || submit) && !text.trim().is_empty() {
+        app.actions.push(Action::SearchHere(text.clone()));
     } else if go.clicked() {
         response.request_focus();
     }
@@ -154,14 +197,14 @@ fn search_box(app: &mut App, ui: &mut egui::Ui) {
         .take(4)
         .cloned()
         .collect();
-    if !history.is_empty() {
+    if !history.is_empty() && text.trim().is_empty() {
         ui.add_space(8.0);
         ui.horizontal(|ui| {
             ui.add_space(inset + 6.0);
             ui.spacing_mut().item_spacing.x = 14.0;
             for query in &history {
                 if recent_search(ui, &palette, query).clicked() {
-                    app.actions.push(Action::Search(query.clone()));
+                    app.actions.push(Action::SearchHere(query.clone()));
                 }
             }
         });

@@ -864,9 +864,15 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     let palette = app.palette;
     let page = app.page().clone();
     let locale = app.locale;
-    // Search for all of Spotify, where Zeron keeps its file search.
-    let width = ui.available_width() - 4.0;
-    super::topbar::global_search(app, ui, width, &gettext(locale, "Search"));
+    // Search for all of Spotify, where Zeron keeps its file search. Home
+    // searches in its own box, so there the field's place stays empty and
+    // the rows below keep their places from page to page.
+    if page == Page::Home {
+        ui.add_space(super::widgets::SEARCH_FIELD_HEIGHT);
+    } else {
+        let width = ui.available_width() - 4.0;
+        super::topbar::global_search(app, ui, width, &gettext(locale, "Search"));
+    }
     ui.add_space(6.0);
     if nav_row(
         ui,
