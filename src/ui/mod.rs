@@ -62,22 +62,24 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ),
         );
     }
-    // The sidebar runs the window's full height, as Zeron's does; the
-    // player floats under the page and the panels beside it.
+    // The sidebar and the panels beside the page run the window's full
+    // height, as Zeron's do; the player floats under the page alone.
     let fullscreen_lyrics = app.lyrics_fullscreen.is_some();
-    if !fullscreen_lyrics && app.settings.sidebar_visible {
-        sidebar::show(app, ui);
-    }
-    player_bar::show(app, ui);
-    if fullscreen_lyrics {
-        lyrics::fullscreen(app, ui);
-    } else {
+    if !fullscreen_lyrics {
+        if app.settings.sidebar_visible {
+            sidebar::show(app, ui);
+        }
         if app.show_queue_panel {
             queue::side_panel(app, ui);
         }
         if app.show_lyrics_panel {
             lyrics::side_panel(app, ui);
         }
+    }
+    player_bar::show(app, ui);
+    if fullscreen_lyrics {
+        lyrics::fullscreen(app, ui);
+    } else {
         central(app, ui);
         keep_room_for_panels(app, ctx);
     }
@@ -376,19 +378,47 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
             } else {
                 0.36
             };
+            // The art stays put while the page scrolls, so it fades as the
+            // header leaves and scrolled rows sit on the plain background.
+            let scroll_key = Id::new("page-scrolled").with(app.page().encode());
+            let scrolled = ui
+                .ctx()
+                .data(|data| data.get_temp::<f32>(scroll_key))
+                .unwrap_or(0.0);
+            let opacity = dither_opacity(scrolled);
             let loader = app.backend.art().clone();
             app.dither_hero.paint(
                 ui,
                 &loader,
                 dither_art.as_deref(),
                 header,
-                palette.dark,
-                strength,
+                crate::dither::Look {
+                    dark: palette.dark,
+                    strength,
+                    opacity,
+                },
             );
+            if dither_art.is_some() && opacity > 0.0 {
+                // A soft shade keeps the top bar's controls readable over
+                // bright art.
+                let shade = Rect::from_min_size(
+                    rect.min,
+                    vec2(
+                        rect.width(),
+                        theme::TOP_BAR_HEIGHT + theme::titlebar_inset(ui.ctx()) + 20.0,
+                    ),
+                );
+                widgets::paint_vertical_gradient(
+                    ui,
+                    shade,
+                    palette.window.gamma_multiply(0.7 * opacity),
+                    egui::Color32::TRANSPARENT,
+                );
+            }
             ui.spacing_mut().item_spacing = vec2(8.0, 6.0);
             // egui fades a scrolled page's edge into the panel's plain
             // colour, which shows as a pale band over a cover's tint; the
-            // page casts a shadow under the header instead.
+            // page meets the header with a plain edge instead.
             ui.spacing_mut().scroll.fade.strength = 0.0;
             topbar::show(app, ui);
             let page = app.page().clone();
@@ -427,30 +457,27 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                         });
                 },
             );
-            header_shadow(ui, scroll.inner_rect, scroll.state.offset.y, palette.dark);
+            let offset = scroll.state.offset.y;
+            if (offset - scrolled).abs() > 0.5 {
+                ui.ctx()
+                    .data_mut(|data| data.insert_temp(scroll_key, offset));
+                ui.ctx().request_repaint();
+            }
             if home {
                 home::next_up_pill(app, ui, scroll.inner_rect);
             }
         });
 }
 
-/// The shadow the header casts on a page scrolled under it, deepening over
-/// the first few points of scrolling. Dark in both themes, lighter over a
-/// light page.
-fn header_shadow(ui: &egui::Ui, page: Rect, scrolled: f32, dark: bool) {
-    let depth = (scrolled / 24.0).clamp(0.0, 1.0);
-    if depth <= 0.0 {
-        return;
-    }
-    let strength = if dark { 110.0 } else { 36.0 };
-    let rect = Rect::from_min_size(page.min, vec2(page.width(), 14.0));
-    widgets::paint_vertical_gradient(
-        ui,
-        rect,
-        egui::Color32::from_black_alpha((strength * depth) as u8),
-        egui::Color32::TRANSPARENT,
-    );
+/// How much of the header's dither shows with the page scrolled this far:
+/// all of it at the top, none once the header has scrolled away.
+fn dither_opacity(scrolled: f32) -> f32 {
+    let t = 1.0 - (scrolled / DITHER_SCROLL_FADE).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
+
+/// How far the page scrolls before the header's dither has faded out.
+const DITHER_SCROLL_FADE: f32 = 260.0;
 
 /// Makes `rect` drag the borderless window. Register it before child widgets so
 /// they keep their clicks.
@@ -844,39 +871,17 @@ mod window_chrome_tests {
 mod tests {
     use super::*;
 
-    /// The header casts a shadow only on a page scrolled under it, and it
-    /// is black in both themes, never the page's own colour.
+    /// The header's art stays put while the page scrolls, so it fades out
+    /// as the header leaves rather than sit behind the scrolled rows.
     #[test]
-    fn the_header_shadow_appears_once_the_page_scrolls() {
-        let ctx = egui::Context::default();
-        let page = Rect::from_min_size(egui::pos2(0.0, 80.0), vec2(800.0, 600.0));
-        let shadows = |scrolled: f32, dark: bool| {
-            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
-                header_shadow(ui, page, scrolled, dark);
-            });
-            output.textures_delta.clear();
-            output
-                .shapes
-                .iter()
-                .filter_map(|shape| match &shape.shape {
-                    egui::Shape::Mesh(mesh) => Some(mesh.vertices.clone()),
-                    _ => None,
-                })
-                .flatten()
-                .collect::<Vec<_>>()
-        };
+    fn the_dither_fades_out_as_the_page_scrolls() {
+        assert_eq!(dither_opacity(0.0), 1.0);
+        assert!(dither_opacity(DITHER_SCROLL_FADE / 2.0) < 1.0);
+        assert!(dither_opacity(DITHER_SCROLL_FADE / 2.0) > 0.0);
         assert!(
-            shadows(0.0, true).is_empty(),
-            "nothing at the top of the page"
+            dither_opacity(DITHER_SCROLL_FADE / 4.0) > dither_opacity(DITHER_SCROLL_FADE / 2.0)
         );
-        for dark in [true, false] {
-            let vertices = shadows(40.0, dark);
-            let top = vertices
-                .iter()
-                .find(|vertex| vertex.pos.y == page.top())
-                .expect("a shadow along the page's top edge");
-            assert!(top.color.a() > 0);
-            assert_eq!((top.color.r(), top.color.g(), top.color.b()), (0, 0, 0));
-        }
+        assert_eq!(dither_opacity(DITHER_SCROLL_FADE), 0.0);
+        assert_eq!(dither_opacity(DITHER_SCROLL_FADE * 4.0), 0.0);
     }
 }
