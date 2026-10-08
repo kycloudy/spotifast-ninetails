@@ -46,6 +46,23 @@ const CARD_BOTTOM: f32 = 12.0;
 const CARD_RADIUS: u8 = 16;
 /// The controls' inset inside the card.
 const CARD_PADDING: f32 = 12.0;
+/// The playback buttons' row, five buttons and four 10-point gaps, and the
+/// least space kept clear on either side of it.
+const TRANSPORT_WIDTH: f32 = 194.0;
+const TRANSPORT_MARGIN: f32 = 12.0;
+
+/// How wide each end of a card whose content is `width` points wide is.
+fn side_width(width: f32) -> f32 {
+    (width * 0.3).clamp(200.0, 420.0)
+}
+
+/// Whether a card under a page `width` points wide keeps the playback
+/// buttons clear of both ends. When it would not, the card spans the
+/// window instead.
+pub fn fits_under(width: f32) -> bool {
+    let content = width - 2.0 * (CARD_SIDE + CARD_PADDING);
+    content - 2.0 * side_width(content) >= TRANSPORT_WIDTH + 2.0 * TRANSPORT_MARGIN
+}
 
 /// Forget this bar's animation session while the sign-in screen is shown.
 pub(crate) fn end_tint_session(ctx: &egui::Context) {
@@ -110,7 +127,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 app.actions.push(Action::CyclePlayerBarVis);
             }
             let width = rect.width();
-            let side = (width * 0.3).clamp(200.0, 420.0);
+            let side = side_width(width);
             let cy = rect.center().y;
             let left = Rect::from_min_max(rect.min, pos2(rect.left() + side, rect.bottom()));
             let center = Rect::from_min_max(
@@ -1139,6 +1156,22 @@ mod player_bar_tint_tests {
 
     /// However light or dark the cover, the visualizer's colours stay in the
     /// band the theme's text reads against, and keep their hue.
+    #[test]
+    fn the_card_fits_under_a_page_wide_enough_for_its_controls() {
+        for (page, fits) in [
+            (360.0, false),
+            (510.0, false),
+            (665.0, false),
+            (666.0, true),
+            (900.0, true),
+            (2400.0, true),
+        ] {
+            assert_eq!(fits_under(page), fits, "{page}");
+        }
+        // The narrowest window is wide enough for a card across it.
+        assert!(fits_under(crate::window::MAIN_MIN_SIZE[0]));
+    }
+
     #[test]
     fn visualizer_colours_stay_behind_the_words() {
         let luminance = |colour: Color32| {

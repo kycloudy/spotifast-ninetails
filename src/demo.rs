@@ -9334,6 +9334,7 @@ mod tests {
     }
     #[test]
     fn side_panels_keep_their_full_height_beside_the_page_toolbar() {
+        let mut spans = 0;
         for theme in ["dark", "light"] {
             let (ctx, mut app) = accessible_app(&format!("full-height-panels-{theme}"));
             app.open(Page::Playlist("pl1".into()));
@@ -9370,13 +9371,25 @@ mod tests {
                     let player = rect("player-bar");
                     assert_eq!(side.top(), library.top(), "{panel} at {width} in {theme}");
                     assert_eq!(side.top(), 0.0, "{panel} must start at the window top");
-                    // The sidebar and the panel run the window's full
-                    // height, and the player floats under the page between
-                    // them, so the panel never ends just above the player.
-                    assert_eq!(side.bottom(), 800.0, "{panel} at {width} in {theme}");
-                    assert_eq!(library.bottom(), 800.0, "{panel} at {width} in {theme}");
-                    assert_eq!(player.left(), library.right());
-                    assert_eq!(player.right(), side.left(), "{panel} at {width} in {theme}");
+                    let page = side.left() - library.right();
+                    if crate::ui::player_bar::fits_under(page) {
+                        // The sidebar and the panel run the window's full
+                        // height, and the player floats under the page
+                        // between them, so the panel never ends just above
+                        // the player.
+                        assert_eq!(side.bottom(), 800.0, "{panel} at {width} in {theme}");
+                        assert_eq!(library.bottom(), 800.0, "{panel} at {width} in {theme}");
+                        assert_eq!(player.left(), library.right());
+                        assert_eq!(player.right(), side.left(), "{panel} at {width} in {theme}");
+                    } else {
+                        spans += 1;
+                        // A page too narrow for the player's controls gives
+                        // the player the window's width, under both panels.
+                        assert_eq!(player.left(), 0.0, "{panel} at {width} in {theme}");
+                        assert_eq!(player.right(), width, "{panel} at {width} in {theme}");
+                        assert_eq!(side.bottom(), player.top(), "{panel} at {width}");
+                        assert_eq!(library.bottom(), player.top(), "{panel} at {width}");
+                    }
                     let search = ctx.read_response(egui::Id::new("global-search")).unwrap();
                     assert!(side.top() < search.rect.top());
                     assert!(
@@ -9387,6 +9400,8 @@ mod tests {
             }
             app.backend.shutdown();
         }
+        // Both layouts are covered: 2 themes, 2 panels and 3 widths.
+        assert!((1..12).contains(&spans), "{spans} of 12 spanned");
     }
 
     /// #644: Go to song radio from a list names the radio after the song
