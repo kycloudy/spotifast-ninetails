@@ -120,6 +120,9 @@ compiling and passing the checks on its own. Feature branches and pull
 requests are for outside contributors; the maintainer's own work, and
 work done with the maintainer, does not go through them.
 
+Never put a session link in a commit message: no `Claude-Session:` line
+and no claude.ai/code session URL.
+
 Keep `main` linear. Squash outside pull requests into one focused commit,
 preserving contributor credit. Never create or push merge commits, including
 local `git merge --no-ff` commits that bypass GitHub's squash-only setting.
