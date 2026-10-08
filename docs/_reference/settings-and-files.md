@@ -367,6 +367,20 @@ preferences keep both shelves visible. Other Home sections keep their normal
 order and contents. This changes what is displayed; hidden shelves still
 refresh in the background.
 
+## Home greeting
+
+Home greets you by the time of day over its search box. To use your own
+words, click the greeting, type, and press Enter or click elsewhere. Press
+Escape to cancel the edit. Clear the text and press Enter to go back to the
+greeting by time of day. Spotifast keeps up to 80 characters and stores the
+text in `settings.json`:
+
+```json
+"home": {
+  "greeting": "Welcome back"
+}
+```
+
 ## Custom themes
 
 Since 0.11.0, Spotifast puts eight palettes in the `themes` folder beside

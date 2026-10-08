@@ -60,11 +60,29 @@ impl Default for HomeShelfSettings {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct HomeSettings {
     pub made_for_you: HomeShelfSettings,
     pub recommendations: HomeShelfSettings,
+    /// The listener's own words in place of the greeting over Home's search
+    /// box; `None` greets by the time of day.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub greeting: Option<String>,
+}
+
+/// The most characters a custom greeting keeps; it is one line over the
+/// search box, not a note.
+pub const GREETING_MAX_CHARS: usize = 80;
+
+impl HomeSettings {
+    /// Store `text` as the greeting, trimmed and cut to
+    /// [`GREETING_MAX_CHARS`]. Blank text returns Home to the greeting by
+    /// time of day.
+    pub fn set_greeting(&mut self, text: &str) {
+        let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        self.greeting = (!text.is_empty()).then(|| text.chars().take(GREETING_MAX_CHARS).collect());
+    }
 }
 
 /// What moves behind the player bar's controls.
@@ -903,7 +921,7 @@ impl ManualProxy {
 
 #[cfg(test)]
 mod tests {
-    use super::Settings;
+    use super::{GREETING_MAX_CHARS, HomeSettings, Settings};
 
     #[test]
     fn new_profiles_follow_the_system_and_saved_choices_are_preserved() {
@@ -1045,6 +1063,29 @@ mod tests {
         assert!(old.home.made_for_you.visible);
         assert!(old.home.recommendations.visible);
         assert_eq!(old.volume, 12345);
+    }
+
+    #[test]
+    fn a_custom_greeting_is_tidied_capped_and_kept_only_when_set() {
+        let mut home = HomeSettings::default();
+        home.set_greeting("  Hi\t  there\n");
+        assert_eq!(home.greeting.as_deref(), Some("Hi there"));
+        home.set_greeting(&"é".repeat(GREETING_MAX_CHARS + 5));
+        assert_eq!(
+            home.greeting.as_ref().map(|text| text.chars().count()),
+            Some(GREETING_MAX_CHARS)
+        );
+        home.set_greeting("   ");
+        assert_eq!(home.greeting, None);
+        assert!(!serde_json::to_string(&home).unwrap().contains("greeting"));
+
+        let settings: Settings =
+            serde_json::from_str(r#"{"home":{"greeting":"Hey you"}}"#).unwrap();
+        assert_eq!(settings.home.greeting.as_deref(), Some("Hey you"));
+        assert!(settings.home.made_for_you.visible);
+        let restored: Settings =
+            serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
+        assert_eq!(restored, settings);
     }
 
     /// Notepad and Windows PowerShell can save UTF-8 with a byte order mark.

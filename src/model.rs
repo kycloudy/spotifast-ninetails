@@ -1071,6 +1071,8 @@ pub enum Action {
     SearchHere(String),
     ForgetSearch(String),
     SetSearchFilter(SearchFilter),
+    /// Greet with these words on Home; blank text greets by the time of day.
+    SetGreeting(String),
     FocusSearch,
     LoadMore(Page),
     LoadWindow {

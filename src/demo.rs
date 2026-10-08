@@ -2930,6 +2930,88 @@ mod tests {
         app.backend.shutdown();
     }
 
+    /// A click on Home's greeting opens it for editing: Enter keeps the new
+    /// words, Escape drops an edit, and a blank greeting goes back to the
+    /// one by time of day.
+    #[test]
+    fn home_greeting_is_edited_in_place() {
+        use egui::accesskit::{Action as AccessibleAction, Role};
+        let (ctx, mut app) = accessible_app("home-greeting");
+        app.settings.home.greeting = None;
+        app.open(Page::Home);
+        accessible_frame(&ctx, &mut app, vec![]);
+        let edit = |ctx: &egui::Context, app: &mut App| {
+            let tree = accessible_frame(ctx, app, vec![]);
+            let button = accessible_node(&tree, "Edit greeting", Role::Button);
+            accessible_frame(
+                ctx,
+                app,
+                vec![accessible_action(button, AccessibleAction::Click, None)],
+            );
+            for _ in 0..2 {
+                accessible_frame(ctx, app, vec![]);
+            }
+            assert!(
+                ctx.memory(|memory| memory.has_focus(egui::Id::new("home-greeting"))),
+                "the click focuses the greeting's field"
+            );
+        };
+
+        edit(&ctx, &mut app);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![egui::Event::Text("  Hi   there ".into())],
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Enter, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(app.settings.home.greeting.as_deref(), Some("Hi there"));
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        accessible_node(&tree, "Edit greeting", Role::Button);
+
+        edit(&ctx, &mut app);
+        accessible_frame(&ctx, &mut app, vec![egui::Event::Text(" friend".into())]);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Escape, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(
+            app.settings.home.greeting.as_deref(),
+            Some("Hi there"),
+            "Escape drops the edit"
+        );
+        assert!(matches!(app.page(), Page::Home));
+
+        edit(&ctx, &mut app);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::A, egui::Modifiers::COMMAND)],
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Backspace, egui::Modifiers::NONE)],
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Enter, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(
+            app.settings.home.greeting, None,
+            "blank restores the default"
+        );
+        app.backend.shutdown();
+    }
+
     /// The top bar names the shown page in its pill, by the item's own name.
     #[test]
     fn the_page_pill_names_the_page() {
