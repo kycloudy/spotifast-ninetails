@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Spotifast Ninetail ships for Windows only.
+        # Spotifast Ninetale ships for Windows only.
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -162,7 +162,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          name: ${{ github.repository == 'crmne/spotifast' && 'Spotifast' || 'Spotifast Ninetail' }} ${{ github.ref_name }}
+          name: Spotifast Ninetale ${{ github.ref_name }}
           # Publish reviewed notes immediately, not a generated PR-only summary.
           body_path: packaging/release-notes/${{ github.ref_name }}.md
           generate_release_notes: false

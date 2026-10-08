@@ -1,10 +1,10 @@
-<h1 align="center">Spotifast Ninetail</h1>
+<h1 align="center">Spotifast Ninetale</h1>
 
 <p align="center"><strong>Spotify, native and fast.</strong></p>
 
-![Spotifast Ninetail Home: the library on the left, the search box over dithered album art, shelves of playlists, and the player card at the bottom](docs/screenshot-ninetail.png)
+![Spotifast Ninetale Home: the library on the left, the search box over dithered album art, shelves of playlists, and the player card at the bottom](docs/screenshot-ninetale.png)
 
-Spotifast Ninetail is a lightweight Spotify app for Windows. It is
+Spotifast Ninetale is a lightweight Spotify app for Windows. It is
 written in Rust, has no browser engine, starts in under a
 second and plays music through
 [librespot](https://github.com/librespot-org/librespot). This edition
