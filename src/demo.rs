@@ -3012,6 +3012,26 @@ mod tests {
         app.backend.shutdown();
     }
 
+    /// The Ninetail wordmark takes the sidebar search field's place on Home,
+    /// where Home's own box does the searching, and nowhere else.
+    #[test]
+    fn the_wordmark_shows_on_home_only() {
+        use egui::accesskit::Role;
+        let (ctx, mut app) = accessible_app("wordmark");
+        let has_wordmark = |tree: &egui::accesskit::TreeUpdate| {
+            tree.nodes
+                .iter()
+                .any(|(_, node)| node.label() == Some("Ninetail") && node.role() == Role::Image)
+        };
+        app.open(Page::Home);
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert!(has_wordmark(&accessible_frame(&ctx, &mut app, vec![])));
+        app.open(Page::Playlist("pl1".into()));
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert!(!has_wordmark(&accessible_frame(&ctx, &mut app, vec![])));
+        app.backend.shutdown();
+    }
+
     /// The top bar names the shown page in its pill, by the item's own name.
     #[test]
     fn the_page_pill_names_the_page() {
