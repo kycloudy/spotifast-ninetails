@@ -64,8 +64,18 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         );
     }
     // The sidebar and the panels beside the page run the window's full
-    // height, as Zeron's do; the player floats under the page alone.
+    // height, as Zeron's do; the player floats under the page alone. A page
+    // too narrow for the player's controls gives the card the window's
+    // width instead, under the panels. The page's width does not depend on
+    // where the card sits, so last frame's decides it.
     let fullscreen_lyrics = app.lyrics_fullscreen.is_some();
+    let page_width = ctx
+        .data(|data| data.get_temp::<f32>(page_width_id()))
+        .unwrap_or(f32::INFINITY);
+    let card_spans = fullscreen_lyrics || !player_bar::fits_under(page_width);
+    if card_spans {
+        player_bar::show(app, ui);
+    }
     if !fullscreen_lyrics {
         if app.settings.sidebar_visible {
             sidebar::show(app, ui);
@@ -77,7 +87,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             lyrics::side_panel(app, ui);
         }
     }
-    player_bar::show(app, ui);
+    if !card_spans {
+        player_bar::show(app, ui);
+    }
     if fullscreen_lyrics {
         lyrics::fullscreen(app, ui);
     } else {
@@ -348,6 +360,11 @@ fn page_dither_art(app: &App) -> Option<String> {
     })
 }
 
+/// The page's width, kept for the next frame's player card.
+fn page_width_id() -> Id {
+    Id::new("page-width")
+}
+
 fn central(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let tint = page_tint(app);
@@ -356,6 +373,11 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
         .frame(Frame::new().fill(palette.window))
         .show(ui, |ui| {
             let rect = ui.max_rect();
+            if ui.ctx().data(|data| data.get_temp::<f32>(page_width_id())) != Some(rect.width()) {
+                ui.ctx()
+                    .data_mut(|data| data.insert_temp(page_width_id(), rect.width()));
+                ui.ctx().request_repaint();
+            }
             // Home's search box sits inside the art, as Zeron's composer
             // sits in its wallpaper, so Home's dither runs deeper and bolder.
             let home = matches!(app.page(), Page::Home);
