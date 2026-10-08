@@ -870,7 +870,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     let page = app.page().clone();
     let locale = app.locale;
     // Search for all of Spotify, where Zeron keeps its file search. Home
-    // searches in its own box, so there the field's place holds the Ninetail
+    // searches in its own box, so there the field's place holds the Ninetale
     // wordmark instead, lined up with the Home row's icon, and the rows
     // below keep their places from page to page.
     if page == Page::Home {
