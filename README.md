@@ -4,8 +4,8 @@
 
 ![Spotifast Ninetail Home: the library on the left, the search box over dithered album art, shelves of playlists, and the player card at the bottom](docs/screenshot-ninetail.png)
 
-Spotifast Ninetail is a lightweight Spotify app for Linux, macOS and
-Windows. It is written in Rust, has no browser engine, starts in under a
+Spotifast Ninetail is a lightweight Spotify app for Windows. It is
+written in Rust, has no browser engine, starts in under a
 second and plays music through
 [librespot](https://github.com/librespot-org/librespot). This edition
 gives [Spotifast](https://github.com/crmne/spotifast) a new look:
