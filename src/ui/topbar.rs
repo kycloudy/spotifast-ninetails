@@ -275,6 +275,7 @@ pub(crate) fn global_search(app: &mut App, ui: &mut egui::Ui, width: f32, hint: 
     }
     if app.search.query != before {
         app.search.typed_at = Some(std::time::Instant::now());
+        app.search.from_home = false;
         if !cleared && !matches!(app.page(), Page::Search) {
             app.actions.push(Action::Open(Page::Search));
         }
@@ -405,7 +406,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             let lead = width - ui.available_width() + window_controls.topbar_width;
             ui.ctx().data_mut(|data| data.insert_temp(lead_id(), lead));
             let fit = topbar_fit(search_room, controls, badges(true), badges(false));
-            if app.settings.sidebar_visible {
+            // Home has its own search box, so the bar names the page there
+            // even while the sidebar is hidden.
+            if app.settings.sidebar_visible || matches!(app.page(), Page::Home) {
                 let (icon, label) = super::page_label(app);
                 page_pill(ui, &palette, icon, &label, fit.search);
             } else {

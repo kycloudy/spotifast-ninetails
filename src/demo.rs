@@ -1504,8 +1504,10 @@ mod tests {
         for &locale in Locale::value_variants() {
             let (ctx, mut app) = accessible_app(&format!("translated-sidebar-{locale:?}"));
             app.locale = locale;
-            // An empty field has no Clear button between it and Home.
+            // An empty field has no Clear button between it and Home, and
+            // the sidebar's field is on every page but Home.
             app.search.query.clear();
+            app.open(Page::Playlist("pl1".into()));
             accessible_frame(&ctx, &mut app, vec![]);
             let tree = accessible_frame(&ctx, &mut app, vec![]);
             let home = accessible_node(&tree, &gettext(locale, "Home"), Role::Button);
@@ -1751,7 +1753,19 @@ mod tests {
             assert!(app.manual_queue.is_empty());
             assert_eq!(app.queue.get().unwrap().queue, rows[2..]);
             let tree = accessible_frame(&ctx, &mut app, vec![]);
-            let recent = accessible_node(&tree, &gettext(locale, "Recent"), Role::Button);
+            // The queue panel's tab, on the right: some languages give the
+            // sidebar's "Recently played" order the same words.
+            let label = gettext(locale, "Recent");
+            let recent = tree
+                .nodes
+                .iter()
+                .find(|(_, node)| {
+                    node.label() == Some(label.as_ref())
+                        && node.role() == Role::Button
+                        && node.bounds().is_some_and(|bounds| bounds.x0 > 640.0)
+                })
+                .expect("the queue's Recent tab")
+                .0;
             accessible_frame(
                 &ctx,
                 &mut app,
@@ -2819,7 +2833,8 @@ mod tests {
     fn clearing_the_global_search_stays_on_the_current_page() {
         use egui::accesskit::{Action as AccessibleAction, Role};
         let (ctx, mut app) = accessible_app("global-search-clear");
-        app.open(Page::Home);
+        // Home searches in its own box; any other page has the sidebar's.
+        app.open(Page::Playlist("pl1".into()));
         accessible_frame(&ctx, &mut app, vec![]);
         let tree = accessible_frame(&ctx, &mut app, vec![]);
         assert!(!app.search.query.is_empty());
@@ -2843,7 +2858,7 @@ mod tests {
         }
         assert!(app.search.query.is_empty());
         assert!(
-            matches!(app.page(), Page::Home),
+            matches!(app.page(), Page::Playlist(_)),
             "clearing must not open the search page"
         );
         assert!(
@@ -2858,17 +2873,21 @@ mod tests {
         app.backend.shutdown();
     }
 
-    /// Typing in Home's search box starts a search and hands the words to
-    /// the sidebar's field, which the search page keeps, so typing carries
-    /// on where the results appear.
+    /// Home searches in its own box: typing there stays on Home, Enter
+    /// searches at once with the results under the box, Ctrl+F focuses the
+    /// box, and the sidebar has no search field while Home is shown.
     #[test]
-    fn home_search_box_hands_typing_to_the_search_field() {
+    fn home_search_box_searches_on_home() {
         use egui::accesskit::{Action as AccessibleAction, Role};
         let (ctx, mut app) = accessible_app("home-search-box");
         app.search.query.clear();
         app.open(Page::Home);
         accessible_frame(&ctx, &mut app, vec![]);
         let tree = accessible_frame(&ctx, &mut app, vec![]);
+        assert!(
+            ctx.read_response(egui::Id::new("global-search")).is_none(),
+            "Home has no sidebar search"
+        );
         let field = accessible_node(&tree, "What do you want to play?", Role::TextInput);
         accessible_frame(
             &ctx,
@@ -2876,15 +2895,38 @@ mod tests {
             vec![accessible_action(field, AccessibleAction::Focus, None)],
         );
         accessible_frame(&ctx, &mut app, vec![egui::Event::Text("Rework".into())]);
-        for _ in 0..3 {
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(app.search.query, "Rework");
+        assert!(matches!(app.page(), Page::Home), "typing stays on Home");
+        assert!(
+            app.search.typed_at.is_some(),
+            "typing searches after a pause"
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Enter, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(app.search.committed, "Rework", "Enter searches at once");
+        assert!(matches!(app.page(), Page::Home), "the results stay on Home");
+        assert!(ctx.read_response(egui::Id::new("global-search")).is_none());
+
+        // Ctrl+F on Home focuses the box rather than opening the search page.
+        app.actions.push(Action::FocusSearch);
+        for _ in 0..2 {
             accessible_frame(&ctx, &mut app, vec![]);
         }
-        assert_eq!(app.search.query, "Rework");
-        assert!(matches!(app.page(), Page::Search));
-        assert!(
-            ctx.memory(|memory| memory.has_focus(egui::Id::new("global-search"))),
-            "the sidebar's field takes over the typing"
-        );
+        assert!(matches!(app.page(), Page::Home));
+        assert!(ctx.memory(|memory| memory.has_focus(egui::Id::new("home-search"))));
+
+        // A search made elsewhere leaves Home's box empty and its shelves shown.
+        app.actions.push(Action::Search("Bonobo".into()));
+        accessible_frame(&ctx, &mut app, vec![]);
+        app.open(Page::Home);
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert!(!app.search.from_home);
+        assert_eq!(crate::ui::page_label(&app).1, "Home");
         app.backend.shutdown();
     }
 

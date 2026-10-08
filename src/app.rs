@@ -8831,8 +8831,15 @@ impl App {
             }
             Action::Search(query) => {
                 self.search.query = query.clone();
+                self.search.from_home = false;
                 self.search.typed_at = None;
                 self.open(Page::Search);
+                self.run_search(query.trim().to_string());
+            }
+            Action::SearchHere(query) => {
+                self.search.query = query.clone();
+                self.search.from_home = true;
+                self.search.typed_at = None;
                 self.run_search(query.trim().to_string());
             }
             Action::ForgetSearch(query) => {
@@ -8842,7 +8849,8 @@ impl App {
             Action::SetSearchFilter(filter) => self.search.filter = filter,
             Action::FocusSearch => {
                 self.search.focus_requested = true;
-                if !matches!(self.page(), Page::Search) {
+                // Home searches in its own box, which takes the focus there.
+                if !matches!(self.page(), Page::Search | Page::Home) {
                     self.open(Page::Search);
                 }
             }

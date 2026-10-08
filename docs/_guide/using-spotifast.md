@@ -149,10 +149,13 @@ sidebar is not in compact mode.
 
 Search for songs, artists, albums, playlists and podcasts in the field at the
 top of the sidebar, or press `Ctrl+F` (`Cmd+F` on macOS) or `/`. While the
-sidebar is hidden, the field moves to the top bar. Home also has a large
-search box with scopes under it (**All**, **Songs**, **Artists**, **Albums**,
-**Podcasts**) and your last searches beneath. Typing there opens the search
-page and carries on in the sidebar's field.
+sidebar is hidden, the field moves to the top bar.
+
+Home has its own large search box instead, with scopes under it and your last
+searches beneath. On Home, the sidebar has no search field, and `Ctrl+F` or
+`/` goes to the box. Results appear on Home under the box as you type, or at
+once when you press `Enter`. Clear the box to see Home's shelves again. A
+search made in the sidebar on another page leaves Home's box empty.
 
 ## Search from a launcher
 
