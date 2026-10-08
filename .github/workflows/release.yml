@@ -239,6 +239,10 @@ jobs:
     # Publishing waits for the maintainer's approval, and only this job can
     # read the release signing key (v* tags only).
     environment: release-signing
+    env:
+      # A fork without the release signing key publishes unsigned checksums;
+      # the step's own `if` cannot read secrets.
+      HAS_SIGNING_KEY: ${{ secrets.SPOTIFAST_UPDATE_SIGNING_KEY != '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -263,6 +267,7 @@ jobs:
       # check the signature and every listed file against the committed key.
       # Updaters that carry the key refuse releases without a valid one.
       - name: Sign checksums
+        if: env.HAS_SIGNING_KEY == 'true'
         env:
           SPOTIFAST_UPDATE_SIGNING_KEY: ${{ secrets.SPOTIFAST_UPDATE_SIGNING_KEY }}
         run: |
@@ -275,7 +280,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          name: Spotifast ${{ github.ref_name }}
+          name: ${{ github.repository == 'crmne/spotifast' && 'Spotifast' || 'Spotifast Ninetail' }} ${{ github.ref_name }}
           # Publish reviewed notes immediately, not a generated PR-only summary.
           body_path: packaging/release-notes/${{ github.ref_name }}.md
           generate_release_notes: false
@@ -285,7 +290,8 @@ jobs:
 
   packaging:
     # The optional Flatpak job may fail without blocking native packages.
-    if: ${{ !cancelled() && needs.publish.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+    # Its packages and publishers point at crmne/spotifast, so forks skip it.
+    if: ${{ !cancelled() && github.repository == 'crmne/spotifast' && needs.publish.result == 'success' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
     needs: publish
     uses: ./.github/workflows/packaging.yml
     with:
