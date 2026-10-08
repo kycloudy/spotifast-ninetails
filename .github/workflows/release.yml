@@ -3,12 +3,22 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Started by hand from the Actions tab: builds the branch it runs on and
+  # publishes it under the version typed here, creating its tag.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, such as v1.0.2
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 env:
   CARGO_TERM_COLOR: always
+  # The pushed tag, or the version typed when started by hand.
+  RELEASE_TAG: ${{ inputs.version || github.ref_name }}
 
 jobs:
   build:
@@ -35,6 +45,16 @@ jobs:
             pe-machine: AA64 machine \(ARM64\)
     steps:
       - uses: actions/checkout@v7
+      # The binaries report Cargo.toml's version, so it must be the one
+      # being released.
+      - name: Version matches Cargo.toml
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -n 1)
+          if [ "v$version" != "$RELEASE_TAG" ]; then
+            echo "::error::Releasing $RELEASE_TAG, but Cargo.toml says $version."
+            exit 1
+          fi
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -83,7 +103,7 @@ jobs:
       - name: Package
         shell: bash
         run: |
-          name="spotifast-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          name="spotifast-${RELEASE_TAG}-${{ matrix.target }}"
           mkdir -p "dist/$name"
           cp "target/${{ matrix.target }}/release/spotifast.exe" "dist/$name/"
           cp README.md LICENSE "dist/$name/"
@@ -97,7 +117,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $version = $env:GITHUB_REF_NAME.TrimStart("v")
+          $version = $env:RELEASE_TAG.TrimStart("v")
           $arch = "${{ matrix.target }}".Split("-")[0]
           $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
           if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
@@ -138,10 +158,10 @@ jobs:
       - name: Source archive
         run: |
           curl --fail --location --retry 3 \
-            "https://github.com/${GITHUB_REPOSITORY}/archive/refs/tags/${GITHUB_REF_NAME}.tar.gz" \
-            --output "dist/spotifast-${GITHUB_REF_NAME}-source.tar.gz"
+            "https://github.com/${GITHUB_REPOSITORY}/archive/${GITHUB_SHA}.tar.gz" \
+            --output "dist/spotifast-${RELEASE_TAG}-source.tar.gz"
       - name: Public filenames, updater compatibility and checksums
-        run: python3 packaging/release-names.py dist "$GITHUB_REF_NAME"
+        run: python3 packaging/release-names.py dist "$RELEASE_TAG"
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '4.0'
@@ -162,10 +182,13 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          name: Spotifast Ninetale ${{ github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          # A release started by hand tags the commit it built.
+          target_commitish: ${{ github.sha }}
+          name: Spotifast Ninetale ${{ env.RELEASE_TAG }}
           # Publish reviewed notes immediately, not a generated PR-only summary.
-          body_path: packaging/release-notes/${{ github.ref_name }}.md
+          body_path: packaging/release-notes/${{ env.RELEASE_TAG }}.md
           generate_release_notes: false
           # A tag with a suffix (v0.4.0-rc1) is a pre-release: it stays
           # off "latest", so the app's update check never offers it.
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
