@@ -7509,7 +7509,8 @@ mod tests {
             &mut app,
             vec![egui::Event::PointerMoved(egui::pos2(
                 start.x,
-                800.0 - crate::theme::PLAYER_BAR_HEIGHT - 14.0,
+                // The panel runs to the window's bottom, beside the player.
+                800.0 - 14.0,
             ))],
         );
         for _ in 0..400 {
@@ -9267,11 +9268,13 @@ mod tests {
                     let player = rect("player-bar");
                     assert_eq!(side.top(), library.top(), "{panel} at {width} in {theme}");
                     assert_eq!(side.top(), 0.0, "{panel} must start at the window top");
-                    assert_eq!(side.bottom(), player.top());
-                    // The sidebar runs the window's full height, and the
-                    // player floats under the page beside it.
+                    // The sidebar and the panel run the window's full
+                    // height, and the player floats under the page between
+                    // them, so the panel never ends just above the player.
+                    assert_eq!(side.bottom(), 800.0, "{panel} at {width} in {theme}");
                     assert_eq!(library.bottom(), 800.0, "{panel} at {width} in {theme}");
                     assert_eq!(player.left(), library.right());
+                    assert_eq!(player.right(), side.left(), "{panel} at {width} in {theme}");
                     let search = ctx.read_response(egui::Id::new("global-search")).unwrap();
                     assert!(side.top() < search.rect.top());
                     assert!(

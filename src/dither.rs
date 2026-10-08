@@ -31,6 +31,10 @@ const CROSSFADE: Duration = Duration::from_millis(320);
 /// How long a cover whose download failed waits to ask again.
 const RETRY: Duration = Duration::from_secs(3);
 
+/// The most of the header's dots a cover may light on average, before the
+/// fade toward the page: a brighter cover's dots are thinned to this.
+const MAX_MEAN_VALUE: f32 = 0.42;
+
 const BAYER: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
 
 /// A decoded cover, small and softened, ready to be dithered.
@@ -126,14 +130,12 @@ pub fn raster(
     strength: f32,
 ) -> ColorImage {
     let alpha = (strength.clamp(0.0, 1.0) * 255.0).round() as u8;
-    let mut pixels = vec![Color32::TRANSPARENT; columns * rows];
+    let mut dots = Vec::with_capacity(columns * rows);
     for row in 0..rows {
-        let fade = fade(row, rows);
         for column in 0..columns {
             let [r, g, b] = source.sample(columns, rows, column as f32 + 0.5, row as f32 + 0.5);
-            let threshold = (BAYER[row % 4][column % 4] as f32 + 0.5) / 16.0;
             let (max, min) = (r.max(g).max(b), r.min(g).min(b));
-            let (value, color) = if dark {
+            dots.push(if dark {
                 let gain = 255.0 / max.max(1.0);
                 (max / 255.0, [r * gain, g * gain, b * gain])
             } else {
@@ -145,7 +147,24 @@ pub fn raster(
                     1.0
                 };
                 (1.0 - min / 255.0, [r * gain, g * gain, b * gain])
-            };
+            });
+        }
+    }
+    // A bright cover in the dark, or a dark one in the light, would light
+    // nearly every dot and drown the header's text: such a cover's dots are
+    // thinned until it lights no more of them than a moderate cover does.
+    let mean = dots.iter().map(|(value, _)| value).sum::<f32>() / dots.len().max(1) as f32;
+    let thinning = if mean > MAX_MEAN_VALUE {
+        MAX_MEAN_VALUE / mean
+    } else {
+        1.0
+    };
+    let mut pixels = vec![Color32::TRANSPARENT; columns * rows];
+    for row in 0..rows {
+        let fade = fade(row, rows) * thinning;
+        for column in 0..columns {
+            let (value, color) = dots[row * columns + column];
+            let threshold = (BAYER[row % 4][column % 4] as f32 + 0.5) / 16.0;
             if value * fade > threshold {
                 let [r, g, b] = color.map(|channel| channel.round().clamp(0.0, 255.0) as u8);
                 pixels[row * columns + column] = Color32::from_rgba_unmultiplied(r, g, b, alpha);
@@ -181,6 +200,17 @@ pub struct DitherHero {
     shown_at: Option<Instant>,
 }
 
+/// How a header's dither looks.
+#[derive(Clone, Copy, Debug)]
+pub struct Look {
+    /// Whether the theme is dark.
+    pub dark: bool,
+    /// Each dot's opacity, baked into the texture.
+    pub strength: f32,
+    /// The whole texture's opacity, which fades it without making it again.
+    pub opacity: f32,
+}
+
 impl DitherHero {
     /// Paints the dither for `uri` over `rect`, starting whatever work it
     /// still needs.
@@ -190,9 +220,13 @@ impl DitherHero {
         loader: &ArtLoader,
         uri: Option<&str>,
         rect: Rect,
-        dark: bool,
-        strength: f32,
+        look: Look,
     ) {
+        let Look {
+            dark,
+            strength,
+            opacity,
+        } = look;
         let ctx = ui.ctx().clone();
         self.receive(&ctx);
         if let Some(uri) = uri {
@@ -216,7 +250,8 @@ impl DitherHero {
         } else {
             ctx.request_repaint();
         }
-        if uri.is_none() {
+        let opacity = opacity.clamp(0.0, 1.0);
+        if uri.is_none() || opacity <= 0.0 {
             return;
         }
         let painter = ui.painter_at(rect);
@@ -226,7 +261,7 @@ impl DitherHero {
                 previous.id(),
                 rect,
                 uv,
-                Color32::WHITE.gamma_multiply(1.0 - mix),
+                Color32::WHITE.gamma_multiply((1.0 - mix) * opacity),
             );
         }
         let Some((key, texture)) = &self.current else {
@@ -235,12 +270,12 @@ impl DitherHero {
         // Art made for another page, song or theme stays until this one's
         // is ready, then fades out under it.
         let fresh = Some(key.uri.as_str()) == uri && key.dark == dark;
-        let opacity = if fresh { mix } else { 1.0 };
+        let shown = if fresh { mix } else { 1.0 };
         painter.image(
             texture.id(),
             rect,
             uv,
-            Color32::WHITE.gamma_multiply(opacity),
+            Color32::WHITE.gamma_multiply(shown * opacity),
         );
     }
 
@@ -343,18 +378,40 @@ mod tests {
 
     #[test]
     fn dots_thin_out_toward_the_page() {
-        let image = raster(&flat([200, 120, 255]), 64, 64, true, 0.6);
+        // A moderate cover, below the brightness at which dots are thinned.
+        let image = raster(&flat([100, 60, 105]), 64, 64, true, 0.6);
         let row = |y: usize| {
             lit(&ColorImage::new(
                 [64, 1],
                 image.pixels[y * 64..(y + 1) * 64].to_vec(),
             ))
         };
-        assert!(row(0) > 40, "the top is mostly lit: {}", row(0));
+        assert!(row(0) > 20, "the top is well lit: {}", row(0));
         assert_eq!(row(63), 0, "nothing reaches the bottom edge");
         let top: usize = (0..16).map(row).sum();
         let bottom: usize = (48..64).map(row).sum();
         assert!(top > bottom * 3, "{top} against {bottom}");
+    }
+
+    #[test]
+    fn a_bright_cover_lights_no_more_dots_than_a_moderate_one() {
+        // A moderate cover sits just under the cap; a bright one is thinned
+        // to it, so they light about as many dots.
+        let moderate = lit(&raster(&flat([102, 60, 90]), 64, 64, true, 0.6));
+        let bright = lit(&raster(&flat([230, 240, 255]), 64, 64, true, 0.6));
+        assert!(moderate > 0);
+        assert!(
+            bright as f32 <= moderate as f32 * 1.1,
+            "a bright cover lit {bright} dots against {moderate}"
+        );
+        // The same holds for a dark cover on the light theme.
+        let moderate = lit(&raster(&flat([255, 200, 153]), 64, 64, false, 0.6));
+        let dark = lit(&raster(&flat([20, 10, 30]), 64, 64, false, 0.6));
+        assert!(moderate > 0);
+        assert!(
+            dark as f32 <= moderate as f32 * 1.1,
+            "a dark cover inked {dark} against {moderate}"
+        );
     }
 
     #[test]
