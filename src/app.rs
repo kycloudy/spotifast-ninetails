@@ -8847,6 +8847,10 @@ impl App {
                 self.settings_dirty = true;
             }
             Action::SetSearchFilter(filter) => self.search.filter = filter,
+            Action::SetGreeting(text) => {
+                self.settings.home.set_greeting(&text);
+                self.mark_settings_dirty();
+            }
             Action::FocusSearch => {
                 self.search.focus_requested = true;
                 // Home searches in its own box, which takes the focus there.

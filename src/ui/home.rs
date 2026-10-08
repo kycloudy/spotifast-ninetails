@@ -51,6 +51,79 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     }
 }
 
+/// The words over the search box: the greeting by time of day, or the
+/// listener's own. A click opens them for editing; Enter or a click away
+/// keeps the edit, Escape drops it, and a blank greeting goes back to the
+/// one by time of day.
+fn greeting(app: &mut App, ui: &mut egui::Ui, width: f32) {
+    let palette = app.palette;
+    let locale = app.locale;
+    let font = theme::semibold(14.5);
+    let by_time = crate::util::greeting(locale);
+    let id = egui::Id::new("home-greeting");
+    let draft_id = id.with("draft");
+    let focus_id = id.with("focus");
+    let label = gettext(locale, "Greeting");
+
+    let draft: Option<String> = ui.data(|data| data.get_temp(draft_id));
+    if let Some(mut text) = draft {
+        let response = widgets::text_edit(
+            ui,
+            locale,
+            egui::TextEdit::singleline(&mut text)
+                .id(id)
+                .hint_text(egui::RichText::new(by_time.as_ref()).color(palette.dim))
+                .font(font)
+                .text_color(palette.text)
+                .frame(egui::Frame::NONE)
+                .margin(egui::Margin::ZERO)
+                .char_limit(crate::settings::GREETING_MAX_CHARS)
+                .desired_width(width),
+        );
+        ui.ctx()
+            .accesskit_node_builder(response.id, |node| node.set_label(label.as_ref()));
+        if ui
+            .data_mut(|data| data.remove_temp::<bool>(focus_id))
+            .is_some()
+        {
+            response.request_focus();
+        }
+        if response.lost_focus() {
+            if !ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+                app.actions.push(Action::SetGreeting(text));
+            }
+            ui.data_mut(|data| data.remove::<String>(draft_id));
+        } else {
+            ui.data_mut(|data| data.insert_temp(draft_id, text));
+        }
+        return;
+    }
+
+    let shown = app.settings.home.greeting.as_deref().unwrap_or(&by_time);
+    let text = theme::text(ui, shown, font, palette.text);
+    // The pencil's room is kept while hidden, so it never shifts the line.
+    let (pencil, _) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::hover());
+    let response = ui
+        .interact(text.rect.union(pencil), id.with("label"), Sense::click())
+        .on_hover_cursor(egui::CursorIcon::Text);
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.set_role(egui::accesskit::Role::Button);
+        node.set_label(gettext(locale, "Edit greeting").as_ref());
+        node.set_value(shown);
+    });
+    if response.hovered() || response.has_focus() {
+        theme::paint_icon(ui, Icon::Pencil, pencil, 12.0, palette.dim);
+    }
+    if response.clicked() {
+        let draft = app.settings.home.greeting.clone().unwrap_or_default();
+        ui.data_mut(|data| {
+            data.insert_temp(draft_id, draft);
+            data.insert_temp(focus_id, true);
+        });
+        ui.ctx().request_repaint();
+    }
+}
+
 /// Zeron's composer as Spotify's search: a greeting, a wide box to type
 /// into with the scopes under it, and the last searches beneath.
 ///
@@ -63,8 +136,7 @@ fn search_box(app: &mut App, ui: &mut egui::Ui) {
     let inset = (ui.available_width() - width) / 2.0;
     ui.horizontal(|ui| {
         ui.add_space(inset);
-        let greeting = crate::util::greeting(locale);
-        theme::text(ui, greeting.as_ref(), theme::semibold(14.5), palette.text);
+        greeting(app, ui, width);
     });
     ui.add_space(4.0);
     let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 96.0), Sense::hover());
