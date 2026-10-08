@@ -16,7 +16,7 @@ use egui::{Color32, ColorImage, Rect, Sense, TextureHandle, TextureOptions, Vec2
 use crate::theme::Palette;
 
 /// The wordmark's height on screen.
-pub const HEIGHT: f32 = 26.0;
+pub const HEIGHT: f32 = 20.0;
 
 const BAYER: [[u8; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
 /// Each screen pixel is judged from this many samples a side.
