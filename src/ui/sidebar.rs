@@ -11,6 +11,9 @@ use crate::theme::{self, Icon, Palette};
 
 const DEFAULT_ROW_HEIGHT: f32 = 52.0;
 const COMPACT_ROW_HEIGHT: f32 = 32.0;
+/// How far in from the sidebar's edge the Home row's icon starts, and the
+/// wordmark above it.
+const NAV_ICON_INSET: f32 = 10.0;
 
 struct Entry {
     image: Option<String>,
@@ -842,8 +845,10 @@ fn nav_row(
         } else {
             palette.secondary
         };
-        let icon_rect =
-            Rect::from_center_size(pos2(rect.left() + 18.0, rect.center().y), Vec2::splat(16.0));
+        let icon_rect = Rect::from_min_size(
+            pos2(rect.left() + NAV_ICON_INSET, rect.center().y - 8.0),
+            Vec2::splat(16.0),
+        );
         icon.image(color, 16.0).paint_at(ui, icon_rect);
         ui.painter().text(
             pos2(rect.left() + 36.0, rect.center().y),
@@ -865,10 +870,21 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     let page = app.page().clone();
     let locale = app.locale;
     // Search for all of Spotify, where Zeron keeps its file search. Home
-    // searches in its own box, so there the field's place stays empty and
-    // the rows below keep their places from page to page.
+    // searches in its own box, so there the field's place holds the Ninetail
+    // wordmark instead, lined up with the Home row's icon, and the rows
+    // below keep their places from page to page.
     if page == Page::Home {
-        ui.add_space(super::widgets::SEARCH_FIELD_HEIGHT);
+        let (slot, _) = ui.allocate_exact_size(
+            vec2(ui.available_width(), super::widgets::SEARCH_FIELD_HEIGHT),
+            Sense::hover(),
+        );
+        let mut slot = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(slot)
+                .layout(Layout::left_to_right(Align::Center)),
+        );
+        slot.add_space(NAV_ICON_INSET);
+        super::logo::show(&mut slot, &palette);
     } else {
         let width = ui.available_width() - 4.0;
         super::topbar::global_search(app, ui, width, &gettext(locale, "Search"));
