@@ -35,48 +35,72 @@ pub struct Palette {
 }
 
 impl Palette {
+    /// Zeron's dark neutrals: a near-black page, a slightly raised shell for
+    /// the sidebar and player bar, soft grey text, and a violet accent.
     pub fn dark() -> Self {
         Self {
             dark: true,
-            window: Color32::from_rgb(0x0f, 0x11, 0x14),
-            panel: Color32::from_rgb(0x15, 0x18, 0x1c),
-            surface: Color32::from_rgb(0x1d, 0x21, 0x27),
-            surface_hover: Color32::from_rgb(0x26, 0x2b, 0x33),
-            surface_active: Color32::from_rgb(0x2f, 0x35, 0x3f),
-            outline: Color32::from_rgb(0x2a, 0x30, 0x38),
-            text: Color32::from_rgb(0xf2, 0xf4, 0xf6),
-            secondary: Color32::from_rgb(0xa9, 0xb1, 0xbc),
-            dim: Color32::from_rgb(0x6e, 0x77, 0x84),
-            accent: Color32::from_rgb(0x1e, 0xd7, 0x60),
-            accent_hover: Color32::from_rgb(0x3c, 0xe8, 0x7a),
-            on_accent: Color32::from_rgb(0x0a, 0x14, 0x0e),
-            danger: Color32::from_rgb(0xf5, 0x71, 0x7f),
-            warning: Color32::from_rgb(0xf2, 0xb8, 0x5c),
-            overlay: Color32::from_rgb(0x22, 0x27, 0x2e),
-            shadow: Color32::from_black_alpha(140),
+            window: Color32::from_rgb(0x06, 0x06, 0x06),
+            panel: Color32::from_rgb(0x0d, 0x0d, 0x0d),
+            surface: Color32::from_rgb(0x17, 0x17, 0x19),
+            surface_hover: Color32::from_rgb(0x21, 0x21, 0x24),
+            surface_active: Color32::from_rgb(0x2b, 0x2b, 0x2f),
+            outline: Color32::from_rgb(0x22, 0x22, 0x25),
+            text: Color32::from_rgb(0xe8, 0xe8, 0xea),
+            secondary: Color32::from_rgb(0xa9, 0xa9, 0xae),
+            dim: Color32::from_rgb(0x85, 0x85, 0x8a),
+            accent: Color32::from_rgb(0x8b, 0x7c, 0xf6),
+            accent_hover: Color32::from_rgb(0xa3, 0x97, 0xf8),
+            on_accent: Color32::from_rgb(0x0b, 0x09, 0x1a),
+            danger: Color32::from_rgb(0xf8, 0x71, 0x71),
+            warning: Color32::from_rgb(0xfa, 0xcc, 0x15),
+            overlay: Color32::from_rgb(0x16, 0x16, 0x18),
+            shadow: Color32::from_black_alpha(160),
         }
     }
 
+    /// Zeron's light neutrals: a white page on a pale grey shell, with a
+    /// deeper violet accent that carries white text.
     pub fn light() -> Self {
         Self {
             dark: false,
-            window: Color32::from_rgb(0xf8, 0xf9, 0xfb),
-            panel: Color32::from_rgb(0xff, 0xff, 0xff),
-            surface: Color32::from_rgb(0xee, 0xf0, 0xf3),
-            surface_hover: Color32::from_rgb(0xe3, 0xe6, 0xeb),
-            surface_active: Color32::from_rgb(0xd7, 0xdb, 0xe1),
-            outline: Color32::from_rgb(0xdd, 0xe1, 0xe6),
-            text: Color32::from_rgb(0x14, 0x17, 0x1a),
-            secondary: Color32::from_rgb(0x53, 0x5b, 0x66),
-            dim: Color32::from_rgb(0x8b, 0x93, 0x9e),
-            accent: Color32::from_rgb(0x15, 0xa6, 0x4a),
-            accent_hover: Color32::from_rgb(0x12, 0x8f, 0x40),
+            window: Color32::from_rgb(0xff, 0xff, 0xff),
+            panel: Color32::from_rgb(0xf3, 0xf3, 0xf5),
+            surface: Color32::from_rgb(0xed, 0xed, 0xf0),
+            surface_hover: Color32::from_rgb(0xe4, 0xe4, 0xe8),
+            surface_active: Color32::from_rgb(0xda, 0xda, 0xdf),
+            outline: Color32::from_rgb(0xe1, 0xe1, 0xe5),
+            text: Color32::from_rgb(0x30, 0x30, 0x35),
+            secondary: Color32::from_rgb(0x62, 0x62, 0x6a),
+            dim: Color32::from_rgb(0x79, 0x79, 0x81),
+            accent: Color32::from_rgb(0x5b, 0x43, 0xe8),
+            accent_hover: Color32::from_rgb(0x4c, 0x35, 0xd6),
             on_accent: Color32::WHITE,
-            danger: Color32::from_rgb(0xd6, 0x3b, 0x4c),
-            warning: Color32::from_rgb(0xb8, 0x7a, 0x14),
+            danger: Color32::from_rgb(0xdc, 0x26, 0x26),
+            warning: Color32::from_rgb(0xa1, 0x62, 0x07),
             overlay: Color32::from_rgb(0xff, 0xff, 0xff),
-            shadow: Color32::from_black_alpha(50),
+            shadow: Color32::from_black_alpha(45),
         }
+    }
+
+    /// Zeron's solid control: the play buttons are drawn in the text colour
+    /// with the page's colour on them, so the accent is kept for state.
+    pub fn solid(&self) -> Color32 {
+        self.text
+    }
+
+    /// [`Self::solid`] under the pointer.
+    pub fn solid_hover(&self) -> Color32 {
+        if self.dark {
+            Color32::WHITE
+        } else {
+            Color32::BLACK
+        }
+    }
+
+    /// The glyph on a [`Self::solid`] control.
+    pub fn on_solid(&self) -> Color32 {
+        self.window
     }
 
     /// A colour derived from album art, softened so it can sit behind text.
@@ -185,7 +209,7 @@ pub fn catalog_detail(
     }
 }
 
-pub const RADIUS: u8 = 8;
+pub const RADIUS: u8 = 10;
 pub const RADIUS_SMALL: u8 = 4;
 pub const ROW_HEIGHT: f32 = 56.0;
 pub const COMPACT_ROW_HEIGHT: f32 = 48.0;
@@ -196,7 +220,7 @@ pub const PLAYER_BAR_HEIGHT: f32 = 88.0;
 /// take the same edge and swap places there, so a width that suits one
 /// has to suit the other, or the window would jump on the swap.
 pub const SIDE_PANEL_MIN_WIDTH: f32 = 280.0;
-pub const TOP_BAR_HEIGHT: f32 = 56.0;
+pub const TOP_BAR_HEIGHT: f32 = 44.0;
 
 /// macOS hides the titlebar and draws the window content all the way to the
 /// top edge, so whatever sits at the top of the window has to leave room for
@@ -367,17 +391,36 @@ fn apply_to_style(style: &mut egui::Style, palette: &Palette) {
     style.url_in_tooltip = false;
 }
 
-/// Inter at its four weights with the monochrome emoji face right behind it
-/// (so every emoji wears the same style, ahead of egui's own pair), then the
-/// installed faces for the scripts Inter lacks, drawn the way the desktop
-/// renders text.
+/// Geist, Zeron's interface face (SIL Open Font License 1.1, see
+/// `assets/fonts/Geist-LICENSE.txt`), as one variable font for every weight.
+const GEIST: &[u8] = include_bytes!("../assets/fonts/Geist-Variable.ttf");
+
+/// Geist at its four weights, Inter right behind it for the letters Geist
+/// lacks, then the monochrome emoji face (so every emoji wears the same
+/// style, ahead of egui's own pair), then the installed faces for the
+/// scripts neither has, drawn the way the desktop renders text.
 fn install_fonts(ctx: &egui::Context) {
     let emoji = egui::FontData::from_static(include_bytes!("../assets/fonts/NotoEmoji.ttf"));
     let mut fonts = fastframe_fonts::FontSetup::default()
         .companion("noto_emoji", std::sync::Arc::new(emoji))
         .definitions();
+    lead_with_geist(&mut fonts);
     text_rendering().apply_to(&mut fonts);
     ctx.set_fonts(fonts);
+}
+
+/// Puts Geist first in each weight's family.
+fn lead_with_geist(fonts: &mut egui::FontDefinitions) {
+    for weight in fastframe_fonts::Weight::ALL {
+        let Some(family) = fonts.families.get_mut(&weight.family()) else {
+            continue;
+        };
+        let name = format!("geist-{}", weight.value() as u32);
+        let mut data = egui::FontData::from_static(GEIST);
+        data.tweak.coords = egui::epaint::text::VariationCoords::new([(b"wght", weight.value())]);
+        family.insert(0, name.clone());
+        fonts.font_data.insert(name, std::sync::Arc::new(data));
+    }
 }
 
 fastframe_icons::icons! {
@@ -730,12 +773,12 @@ fn soft_button_inner(
     active: bool,
     dismissible: bool,
 ) -> (Response, bool) {
-    let font = medium(13.0);
+    let font = medium(12.5);
     let color = if active { palette.window } else { palette.text };
     let galley = crate::bidi::layout_line(ui.painter(), label, font, color);
-    let icon_size = 15.0;
+    let icon_size = 14.0;
     let icon_width = if icon.is_some() { icon_size + 6.0 } else { 0.0 };
-    let padding = Vec2::new(12.0, 7.0);
+    let padding = Vec2::new(10.0, 6.0);
     let size = Vec2::new(galley.size().x + icon_width, galley.size().y) + padding * 2.0;
     let (rect, response) = ui.allocate_exact_size(size, Sense::click());
     response.widget_info(|| {
@@ -774,7 +817,9 @@ fn soft_button_inner(
         } else {
             palette.surface
         };
-        ui.painter().rect_filled(rect, rect.height() / 2.0, fill);
+        // Zeron's control corner rather than a full pill.
+        ui.painter()
+            .rect_filled(rect, f32::from(RADIUS_SMALL + 2), fill);
         let mut x = rect.left() + padding.x;
         if let Some(icon) = icon {
             let icon = if dismiss.is_some() && hovered {
@@ -1069,8 +1114,9 @@ mod tests {
         output.textures_delta.clear();
     }
 
-    /// The monochrome emoji face comes right after Inter at every weight
-    /// and in the monospace family, ahead of egui's own emoji pair.
+    /// Geist leads every weight, Inter follows it for the letters Geist
+    /// lacks, and the monochrome emoji face comes right after Inter at every
+    /// weight and in the monospace family, ahead of egui's own emoji pair.
     #[test]
     fn the_emoji_face_follows_inter_everywhere() {
         let ctx = egui::Context::default();
@@ -1081,7 +1127,12 @@ mod tests {
         let fonts = ctx.fonts(|fonts| fonts.definitions().clone());
         for weight in fastframe_fonts::Weight::ALL {
             let family = &fonts.families[&weight.family()];
-            assert_eq!(family[..2], [weight.name(), "noto_emoji"], "{weight:?}");
+            let geist = format!("geist-{}", weight.value() as u32);
+            assert_eq!(
+                family[..3],
+                [geist.as_str(), weight.name(), "noto_emoji"],
+                "{weight:?}"
+            );
         }
         assert_eq!(
             fonts.families[&egui::FontFamily::Monospace][1],

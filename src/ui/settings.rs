@@ -800,6 +800,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let theme_guide = gettext(locale, "How to make a theme");
     let themes_folder = gettext(locale, "Open themes folder");
     let accent_from_art = gettext(locale, "Colour from album art");
+    let dither_headers = gettext(locale, "Dithered page headers");
     let sidebar_compact = gettext(locale, "Compact library sidebar");
     let tracklist_compact = gettext(locale, "Compact track list");
     let middle_click = gettext(locale, "Middle-click autoscroll");
@@ -882,6 +883,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 "Show the song moving behind the player bar's controls while it plays here.",
             ),
         ),
+        RowText::new(
+            dither_headers.clone(),
+            gettext(
+                locale,
+                "Draw the cover behind each page's title as a field of dots.",
+            ),
+        )
+        .when(app.settings.accent_from_art),
     ];
     if section_matches(&needle, &appearance, &appearance_rows) {
         any_visible = true;
@@ -1004,6 +1013,25 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                         &palette,
                         &accent_from_art,
                         &mut app.settings.accent_from_art,
+                    )
+                    .changed()
+                    {
+                        changed = true;
+                    }
+                },
+            );
+            filtered_row(
+                ui,
+                &palette,
+                &needle,
+                &appearance,
+                &appearance_rows[9],
+                |ui| {
+                    if widgets::switch(
+                        ui,
+                        &palette,
+                        &dither_headers,
+                        &mut app.settings.dither_headers,
                     )
                     .changed()
                     {

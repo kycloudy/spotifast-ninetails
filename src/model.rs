@@ -569,6 +569,9 @@ pub struct Library {
     /// The later playlist page on its way, so a second answer for a page
     /// already taken adds nothing.
     pub playlists_asked: Option<u32>,
+    /// The list came from a personal app, which leaves out Spotify's own
+    /// playlists, so a complete read replaces it when one can be made.
+    pub playlists_partial: bool,
     pub liked: PagedList<SavedTrack>,
     pub albums: PagedList<SavedAlbum>,
     pub artists: CursorList<Artist>,
@@ -654,6 +657,9 @@ pub struct SearchState {
     pub filter: SearchFilter,
     pub typed_at: Option<Instant>,
     pub focus_requested: bool,
+    /// Whether the current search was made in Home's box. Home shows its
+    /// results only then; a search from the sidebar leaves Home as it was.
+    pub from_home: bool,
 }
 
 #[derive(Default)]
@@ -1063,8 +1069,13 @@ pub enum Action {
     OpenUrl(String),
     OpenInSpotify(String),
     Search(String),
+    /// Search without leaving the page: Home's own search box shows the
+    /// results under it.
+    SearchHere(String),
     ForgetSearch(String),
     SetSearchFilter(SearchFilter),
+    /// Greet with these words on Home; blank text greets by the time of day.
+    SetGreeting(String),
     FocusSearch,
     LoadMore(Page),
     LoadWindow {

@@ -145,6 +145,18 @@ Library sidebar to start playing it. A single click still opens the row's page.
 Pointing at a row's cover art also shows a play button, but only when the
 sidebar is not in compact mode.
 
+## Searching
+
+Search for songs, artists, albums, playlists and podcasts in the field at the
+top of the sidebar, or press `Ctrl+F` (`Cmd+F` on macOS) or `/`. While the
+sidebar is hidden, the field moves to the top bar.
+
+Home has its own large search box instead, with scopes under it and your last
+searches beneath. On Home, the sidebar has no search field, and `Ctrl+F` or
+`/` goes to the box. Results appear on Home under the box as you type, or at
+once when you press `Enter`. Clear the box to see Home's shelves again. A
+search made in the sidebar on another page leaves Home's box empty.
+
 ## Search from a launcher
 
 **In development, not included in 0.8.0:** a Spotify search link opens Search
@@ -406,15 +418,18 @@ Use your desktop's window rule or shortcut instead. In KDE Plasma, configure
 Window Management**. Your saved preference remains available when you use
 Spotifast on Windows, macOS, or X11 again.
 
-Since 0.8.0, the top bar reserves room for the device and update
-badges beside Search. In narrow windows those badges show only their icons.
+The top bar names the page you are on and reserves room for the update
+badge. In narrow windows the badge shows only its icon. Where music plays is
+shown by the device chip in the player: the speaker alone while it plays on
+this computer, and the device's name while it plays elsewhere. A narrow
+window shows the speaker alone in both cases.
 The bar stays above the page. Library, Queue and Lyrics keep their full height.
 When the window narrows, Library, Queue and Lyrics give up width before the
 top bar runs out of room, and return to the widths you chose once it widens.
 With Queue or Lyrics open, the window cannot be made narrower than the room
 they need beside the page.
-Hover to read the device name or available version; click to open the device
-picker or update window.
+Hover the chip to read the device name, or the badge to read the available
+version; click to open the device picker or update window.
 
 ## MacBook notch widget
 

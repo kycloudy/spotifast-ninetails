@@ -140,18 +140,18 @@ fn show_actions(app: &mut App, ui: &mut egui::Ui, show: &Show, latest: Option<&E
             if app.play_pending(&latest.uri) {
                 theme::circle_spinner(
                     ui,
-                    56.0,
-                    palette.accent,
-                    palette.on_accent,
+                    44.0,
+                    palette.solid(),
+                    palette.on_solid(),
                     &gettext(locale, "Starting…"),
                 );
             } else if theme::circle_button(
                 ui,
                 Icon::PlayFilled,
-                56.0,
-                palette.accent,
-                palette.accent_hover,
-                palette.on_accent,
+                44.0,
+                palette.solid(),
+                palette.solid_hover(),
+                palette.on_solid(),
                 &gettext(locale, "Play latest episode"),
             )
             .clicked()

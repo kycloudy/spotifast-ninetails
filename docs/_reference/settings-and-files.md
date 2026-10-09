@@ -232,6 +232,7 @@ main fields are:
 | `custom_theme_cache` | absent | Last accepted custom palette; preserves appearance if its file is missing or invalid |
 | `system_theme_cache` | absent | Last accepted Omarchy palette for Follow system; retained across restarts |
 | `accent_from_art` | `true` | Tint pages with album art |
+| `dither_headers` | `true` | Draw the page's cover, or the playing song's art, behind the page title as dithered dots. Has no effect while `accent_from_art` is off |
 | `player_bar_vis` | `off` | Since 0.11.0: what moves behind the player bar while a song plays on this computer: `off`, `spectrum` or `waveform` |
 | `library_sort` | `{}` | Per-section Library order overrides, since 0.8.0: `library`, `recently_played`, `name`, `recently_added`, `local`, or `spotify`, where supported |
 | `sidebar_order` | `[]` | Saved local playlist arrangement, including an unpinned Liked Songs, retained when another sort is selected |
@@ -365,6 +366,20 @@ Set either `visible` value to `true` to show that shelf again. Omitted
 preferences keep both shelves visible. Other Home sections keep their normal
 order and contents. This changes what is displayed; hidden shelves still
 refresh in the background.
+
+## Home greeting
+
+Home greets you by the time of day over its search box. To use your own
+words, click the greeting, type, and press Enter or click elsewhere. Press
+Escape to cancel the edit. Clear the text and press Enter to go back to the
+greeting by time of day. Spotifast keeps up to 80 characters and stores the
+text in `settings.json`:
+
+```json
+"home": {
+  "greeting": "Welcome back"
+}
+```
 
 ## Custom themes
 

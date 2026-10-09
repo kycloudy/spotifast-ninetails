@@ -1,12 +1,8 @@
 name: Docs
 
+# Spotifast Ninetale ships for Windows only: this runs only when started
+# by hand.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - docs/**
-      - .github/workflows/docs.yml
   workflow_dispatch:
 
 permissions:

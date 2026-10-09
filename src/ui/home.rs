@@ -7,17 +7,35 @@ use egui::{CornerRadius, Rect, Sense, Vec2, pos2, vec2};
 use crate::api::models::{Episode, PlayableItem, Playlist, Show, pick_image};
 use crate::app::App;
 use crate::i18n::gettext;
-use crate::model::{Action, DISCOVER_TERMS, Loadable, Page, RowContext};
+use crate::model::{Action, DISCOVER_TERMS, Loadable, Page, RowContext, SearchFilter};
 use crate::theme::{self, Icon};
 
 use super::widgets::{self, TrackRow};
 
+/// The search box's widest, and how far below the bar it sits, inside the
+/// dithered art.
+const SEARCH_BOX_WIDTH: f32 = 640.0;
+const SEARCH_BOX_TOP: f32 = 96.0;
+/// The scopes a narrow search box offers; a wide one offers them all.
+const SEARCH_SCOPES: [SearchFilter; 5] = [
+    SearchFilter::All,
+    SearchFilter::Songs,
+    SearchFilter::Artists,
+    SearchFilter::Albums,
+    SearchFilter::Podcasts,
+];
+
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
-    let palette = app.palette;
-    ui.add_space(6.0);
-    let greeting = crate::util::greeting(app.locale);
-    theme::text(ui, greeting.as_ref(), theme::bold(30.0), palette.text);
-    ui.add_space(12.0);
+    ui.add_space(SEARCH_BOX_TOP);
+    search_box(app, ui);
+    // With words in the box, Home is the search: its results take the place
+    // of the shelves until the box is cleared.
+    if app.search.from_home && !app.search.query.trim().is_empty() {
+        ui.add_space(28.0);
+        super::search::results(app, ui);
+        return;
+    }
+    ui.add_space(40.0);
     quick_access(app, ui);
     ui.add_space(16.0);
 
@@ -30,6 +48,376 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     top_tracks(app, ui);
     if app.settings.home.recommendations.visible {
         recommendations(app, ui);
+    }
+}
+
+/// The words over the search box: the greeting by time of day, or the
+/// listener's own. A click opens them for editing; Enter or a click away
+/// keeps the edit, Escape drops it, and a blank greeting goes back to the
+/// one by time of day.
+fn greeting(app: &mut App, ui: &mut egui::Ui, width: f32) {
+    let palette = app.palette;
+    let locale = app.locale;
+    let font = theme::semibold(14.5);
+    let by_time = crate::util::greeting(locale);
+    let id = egui::Id::new("home-greeting");
+    let draft_id = id.with("draft");
+    let focus_id = id.with("focus");
+    let label = gettext(locale, "Greeting");
+
+    let draft: Option<String> = ui.data(|data| data.get_temp(draft_id));
+    if let Some(mut text) = draft {
+        let response = widgets::text_edit(
+            ui,
+            locale,
+            egui::TextEdit::singleline(&mut text)
+                .id(id)
+                .hint_text(egui::RichText::new(by_time.as_ref()).color(palette.dim))
+                .font(font)
+                .text_color(palette.text)
+                .frame(egui::Frame::NONE)
+                .margin(egui::Margin::ZERO)
+                .char_limit(crate::settings::GREETING_MAX_CHARS)
+                .desired_width(width),
+        );
+        ui.ctx()
+            .accesskit_node_builder(response.id, |node| node.set_label(label.as_ref()));
+        if ui
+            .data_mut(|data| data.remove_temp::<bool>(focus_id))
+            .is_some()
+        {
+            response.request_focus();
+        }
+        if response.lost_focus() {
+            if !ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+                app.actions.push(Action::SetGreeting(text));
+            }
+            ui.data_mut(|data| data.remove::<String>(draft_id));
+        } else {
+            ui.data_mut(|data| data.insert_temp(draft_id, text));
+        }
+        return;
+    }
+
+    let shown = app.settings.home.greeting.as_deref().unwrap_or(&by_time);
+    let text = theme::text(ui, shown, font, palette.text);
+    // The pencil's room is kept while hidden, so it never shifts the line.
+    let (pencil, _) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::hover());
+    let response = ui
+        .interact(text.rect.union(pencil), id.with("label"), Sense::click())
+        .on_hover_cursor(egui::CursorIcon::Text);
+    ui.ctx().accesskit_node_builder(response.id, |node| {
+        node.set_role(egui::accesskit::Role::Button);
+        node.set_label(gettext(locale, "Edit greeting").as_ref());
+        node.set_value(shown);
+    });
+    if response.hovered() || response.has_focus() {
+        theme::paint_icon(ui, Icon::Pencil, pencil, 12.0, palette.dim);
+    }
+    if response.clicked() {
+        let draft = app.settings.home.greeting.clone().unwrap_or_default();
+        ui.data_mut(|data| {
+            data.insert_temp(draft_id, draft);
+            data.insert_temp(focus_id, true);
+        });
+        ui.ctx().request_repaint();
+    }
+}
+
+/// Zeron's composer as Spotify's search: a greeting, a wide box to type
+/// into with the scopes under it, and the last searches beneath.
+///
+/// Home is searched here, not in the sidebar: typing searches after the
+/// usual pause, Enter at once, and the results appear on Home itself.
+fn search_box(app: &mut App, ui: &mut egui::Ui) {
+    let palette = app.palette;
+    let locale = app.locale;
+    let width = ui.available_width().min(SEARCH_BOX_WIDTH);
+    let inset = (ui.available_width() - width) / 2.0;
+    ui.horizontal(|ui| {
+        ui.add_space(inset);
+        greeting(app, ui, width);
+    });
+    ui.add_space(4.0);
+    let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 96.0), Sense::hover());
+    let rect = Rect::from_min_size(pos2(row.left() + inset, row.top()), vec2(width, 96.0));
+    ui.painter().add(
+        egui::epaint::Shadow {
+            offset: [0, 14],
+            blur: 40,
+            spread: 0,
+            color: palette.shadow.gamma_multiply(0.7),
+        }
+        .as_shape(rect, CornerRadius::same(16)),
+    );
+    ui.painter().rect(
+        rect,
+        16,
+        palette.panel.gamma_multiply(0.9),
+        egui::Stroke::new(1.0, palette.outline),
+        egui::StrokeKind::Inside,
+    );
+
+    let id = egui::Id::new("home-search");
+    let field = Rect::from_min_max(
+        pos2(rect.left() + 16.0, rect.top() + 12.0),
+        pos2(rect.right() - 16.0, rect.top() + 40.0),
+    );
+    let mut field_ui = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(field)
+            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
+    // The box holds the current search only when it was made here; one
+    // made in the sidebar on another page leaves the box empty.
+    let mut text = if app.search.from_home {
+        app.search.query.clone()
+    } else {
+        String::new()
+    };
+    let before = text.clone();
+    let hint = gettext(locale, "What do you want to play?");
+    let response = widgets::text_edit(
+        &mut field_ui,
+        locale,
+        egui::TextEdit::singleline(&mut text)
+            .id(id)
+            .hint_text(egui::RichText::new(hint.as_ref()).color(palette.dim))
+            .font(theme::regular(15.0))
+            .text_color(palette.text)
+            .frame(egui::Frame::NONE)
+            .desired_width(field.width()),
+    );
+    ui.ctx()
+        .accesskit_node_builder(response.id, |node| node.set_label(hint.as_ref()));
+    if app.search.focus_requested {
+        app.search.focus_requested = false;
+        response.request_focus();
+    }
+    if text != before {
+        app.search.query = text.clone();
+        app.search.from_home = true;
+        app.search.typed_at = Some(std::time::Instant::now());
+    }
+    if response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+        response.surrender_focus();
+    }
+    let submit = response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
+
+    let controls = Rect::from_min_max(
+        pos2(rect.left() + 10.0, rect.bottom() - 42.0),
+        pos2(rect.right() - 10.0, rect.bottom() - 10.0),
+    );
+    let mut tabs = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(controls)
+            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+    );
+    tabs.spacing_mut().item_spacing.x = 2.0;
+    let scopes: &[SearchFilter] = if width >= 600.0 {
+        &SearchFilter::ALL
+    } else {
+        &SEARCH_SCOPES
+    };
+    for &scope in scopes {
+        let label = scope.label(locale);
+        if widgets::tab_button(&mut tabs, &palette, &label, app.search.filter == scope).clicked() {
+            app.actions.push(Action::SetSearchFilter(scope));
+        }
+    }
+    let mut end = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(controls)
+            .layout(egui::Layout::right_to_left(egui::Align::Center)),
+    );
+    let go = theme::circle_button(
+        &mut end,
+        Icon::ArrowRight,
+        30.0,
+        palette.solid(),
+        palette.solid_hover(),
+        palette.on_solid(),
+        &gettext(locale, "Search"),
+    );
+    if !text.is_empty() {
+        end.add_space(4.0);
+        if theme::icon_button(
+            &mut end,
+            Icon::X,
+            15.0,
+            palette.secondary,
+            palette.text,
+            &gettext(locale, "Clear"),
+        )
+        .clicked()
+        {
+            app.search.query.clear();
+            app.search.typed_at = Some(std::time::Instant::now());
+            response.request_focus();
+        }
+    }
+    if (go.clicked() || submit) && !text.trim().is_empty() {
+        app.actions.push(Action::SearchHere(text.clone()));
+    } else if go.clicked() {
+        response.request_focus();
+    }
+
+    let history: Vec<String> = app
+        .settings
+        .search_history
+        .iter()
+        .take(4)
+        .cloned()
+        .collect();
+    if !history.is_empty() && text.trim().is_empty() {
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            ui.add_space(inset + 6.0);
+            ui.spacing_mut().item_spacing.x = 14.0;
+            for query in &history {
+                if recent_search(ui, &palette, query).clicked() {
+                    app.actions.push(Action::SearchHere(query.clone()));
+                }
+            }
+        });
+    }
+}
+
+/// A past search under the box: a clock and the words.
+fn recent_search(ui: &mut egui::Ui, palette: &theme::Palette, query: &str) -> egui::Response {
+    let mut job = egui::text::LayoutJob::simple_singleline(
+        query.to_owned(),
+        theme::medium(12.5),
+        palette.text,
+    );
+    job.wrap = egui::text::TextWrapping::truncate_at_width(160.0);
+    let galley = ui.painter().layout_job(job);
+    let size = vec2(18.0 + galley.size().x, 24.0);
+    let (rect, response) = ui.allocate_exact_size(size, Sense::click());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), query)
+    });
+    if ui.is_rect_visible(rect) {
+        // In the text colour, as it sits on the art's dots; the clock
+        // brightens to show the pointer.
+        let icon = if response.hovered() {
+            palette.text
+        } else {
+            palette.secondary
+        };
+        Icon::Clock.image(icon, 12.0).paint_at(
+            ui,
+            Rect::from_min_size(pos2(rect.left(), rect.center().y - 6.0), Vec2::splat(12.0)),
+        );
+        ui.painter().galley(
+            pos2(rect.left() + 18.0, rect.center().y - galley.size().y / 2.0),
+            galley,
+            palette.text,
+        );
+    }
+    theme::focus_ring(ui, &response);
+    response
+}
+
+/// A pill floating over the bottom of Home, as Zeron's updates pill does:
+/// the next songs' covers and how many there are. A click opens the queue.
+pub fn next_up_pill(app: &mut App, ui: &egui::Ui, area: Rect) {
+    let palette = app.palette;
+    let Loadable::Loaded(queue) = &app.queue else {
+        return;
+    };
+    let count = queue.queue.len();
+    if count == 0 {
+        return;
+    }
+    let covers: Vec<String> = queue
+        .queue
+        .iter()
+        .filter_map(|item| item.image(64).map(str::to_owned))
+        .take(3)
+        .collect();
+    let label = format!("{} · {count}", gettext(app.locale, "Next up"));
+    let galley = ui
+        .painter()
+        .layout_no_wrap(label.clone(), theme::medium(12.5), palette.text);
+    let covers_width = if covers.is_empty() {
+        0.0
+    } else {
+        18.0 + 12.0 * (covers.len() - 1) as f32 + 8.0
+    };
+    let size = vec2(
+        10.0 + covers_width + galley.size().x + 6.0 + 12.0 + 12.0,
+        34.0,
+    );
+    let rect = Rect::from_min_size(
+        pos2(
+            area.center().x - size.x / 2.0,
+            area.bottom() - size.y - 12.0,
+        ),
+        size,
+    );
+    let response = ui.interact(rect, egui::Id::new("next-up-pill"), Sense::click());
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
+    });
+    let painter = ui.painter();
+    painter.add(
+        egui::epaint::Shadow {
+            offset: [0, 6],
+            blur: 18,
+            spread: 0,
+            color: palette.shadow.gamma_multiply(0.6),
+        }
+        .as_shape(rect, CornerRadius::same(17)),
+    );
+    let fill = if response.hovered() {
+        palette.surface_hover
+    } else {
+        palette.panel
+    };
+    painter.rect(
+        rect,
+        17,
+        fill,
+        egui::Stroke::new(1.0, palette.outline),
+        egui::StrokeKind::Inside,
+    );
+    let mut x = rect.left() + 10.0;
+    for (index, url) in covers.iter().enumerate() {
+        let cover = Rect::from_min_size(
+            pos2(x + 12.0 * index as f32, rect.center().y - 9.0),
+            Vec2::splat(18.0),
+        );
+        if index > 0 {
+            painter.rect_filled(cover.expand(1.5), 5.0, fill);
+        }
+        widgets::paint_cover(
+            ui,
+            &palette,
+            Some(url),
+            cover,
+            4.0,
+            Icon::Music,
+            Some(app.backend.art()),
+        );
+    }
+    x += covers_width;
+    let text_width = galley.size().x;
+    painter.galley(
+        pos2(x, rect.center().y - galley.size().y / 2.0),
+        galley,
+        palette.text,
+    );
+    Icon::ChevronUp.image(palette.secondary, 12.0).paint_at(
+        ui,
+        Rect::from_min_size(
+            pos2(x + text_width + 6.0, rect.center().y - 6.0),
+            Vec2::splat(12.0),
+        ),
+    );
+    theme::focus_ring(ui, &response);
+    if response.clicked() {
+        app.actions.push(Action::ToggleQueuePanel);
     }
 }
 
@@ -72,7 +460,7 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
     }
     let available = ui.available_width();
     let columns = ((available / 300.0).floor() as usize).clamp(2, 4);
-    let gap = 10.0;
+    let gap = 8.0;
     let tile_width = (available - gap * (columns as f32 - 1.0)) / columns as f32;
     let rows = tiles.len().div_ceil(columns);
     for row in 0..rows {
@@ -91,7 +479,7 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
                     break;
                 };
                 let (rect, response) =
-                    ui.allocate_exact_size(vec2(tile_width, 60.0), Sense::click());
+                    ui.allocate_exact_size(vec2(tile_width, 56.0), Sense::click());
                 if ui.is_rect_visible(rect) {
                     let hovered = ui.rect_contains_pointer(rect);
                     let fill = if hovered {
@@ -99,8 +487,17 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
                     } else {
                         palette.surface
                     };
-                    ui.painter().rect_filled(rect, CornerRadius::same(6), fill);
-                    let cover = Rect::from_min_size(rect.min, Vec2::splat(60.0));
+                    ui.painter().rect(
+                        rect,
+                        CornerRadius::same(theme::RADIUS),
+                        fill,
+                        egui::Stroke::new(1.0, palette.outline.gamma_multiply(0.7)),
+                        egui::StrokeKind::Inside,
+                    );
+                    let cover = Rect::from_min_size(
+                        pos2(rect.left() + 8.0, rect.center().y - 20.0),
+                        Vec2::splat(40.0),
+                    );
                     if *liked {
                         super::sidebar::liked_cover(ui, cover, 6.0);
                     } else {
@@ -113,10 +510,11 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
                             Icon::Music,
                             Some(app.backend.art()),
                         );
+                        widgets::paint_cover_edge(ui, &palette, cover, 6.0);
                     }
                     let play_room = if hovered && uri.is_some() { 52.0 } else { 12.0 };
                     let text_rect = Rect::from_min_max(
-                        pos2(cover.right() + 12.0, rect.top()),
+                        pos2(cover.right() + 10.0, rect.top()),
                         pos2(rect.right() - play_room, rect.bottom()),
                     );
                     crate::bidi::paint_line(
@@ -125,7 +523,7 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
                         text_rect.right(),
                         rect.center().y,
                         name,
-                        theme::bold(14.5),
+                        theme::medium(13.5),
                         palette.text,
                     );
                     if hovered && let Some(uri) = uri {
@@ -133,8 +531,8 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
                             == Some(uri.as_str())
                             && app.believed_playing();
                         let button = Rect::from_center_size(
-                            pos2(rect.right() - 28.0, rect.center().y),
-                            Vec2::splat(40.0),
+                            pos2(rect.right() - 26.0, rect.center().y),
+                            Vec2::splat(36.0),
                         );
                         let mut child =
                             ui.new_child(egui::UiBuilder::new().max_rect(button).layout(
@@ -147,10 +545,10 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
                             } else {
                                 Icon::PlayFilled
                             },
-                            40.0,
-                            palette.accent,
-                            palette.accent_hover,
-                            palette.on_accent,
+                            36.0,
+                            palette.solid(),
+                            palette.solid_hover(),
+                            palette.on_solid(),
                             &gettext(app.locale, if playing_here { "Pause" } else { "Play" }),
                         )
                         .clicked()

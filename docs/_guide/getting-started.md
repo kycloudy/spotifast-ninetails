@@ -21,8 +21,8 @@ so you normally do not need to sign in each time you open the app.
 ## Enable playback on this computer
 
 **Playing music requires Spotify Premium.** To listen on this computer,
-open the device menu in the bottom player bar and select **Set up playback
-here**, or find the same option in Settings.
+open the device menu from the speaker in the player at the bottom and select
+**Set up playback here**, or find the same option in Settings.
 
 Spotify asks you to approve playback separately from library access. Follow
 the browser prompt once; Spotifast remembers this approval too.

@@ -1504,10 +1504,15 @@ mod tests {
         for &locale in Locale::value_variants() {
             let (ctx, mut app) = accessible_app(&format!("translated-sidebar-{locale:?}"));
             app.locale = locale;
+            // An empty field has no Clear button between it and Home, and
+            // the sidebar's field is on every page but Home.
+            app.search.query.clear();
+            app.open(Page::Playlist("pl1".into()));
             accessible_frame(&ctx, &mut app, vec![]);
             let tree = accessible_frame(&ctx, &mut app, vec![]);
             let home = accessible_node(&tree, &gettext(locale, "Home"), Role::Button);
-            let search = accessible_node(&tree, &gettext(locale, "Search"), Role::Button);
+            // The sidebar opens with the search field, then Home.
+            let search = accessible_node(&tree, &gettext(locale, "Search"), Role::TextInput);
             accessible_node(&tree, &gettext(locale, "Create a playlist"), Role::Button);
             accessible_node(&tree, &gettext(locale, "Albums"), Role::Button);
             accessible_node(&tree, &gettext(locale, "Artists"), Role::Button);
@@ -1515,14 +1520,14 @@ mod tests {
             accessible_frame(
                 &ctx,
                 &mut app,
-                vec![accessible_action(home, AccessibleAction::Focus, None)],
+                vec![accessible_action(search, AccessibleAction::Focus, None)],
             );
             let tree = accessible_frame(
                 &ctx,
                 &mut app,
                 vec![keyboard(egui::Key::Tab, egui::Modifiers::NONE)],
             );
-            assert_eq!(tree.focus, search, "Tab order must survive translation");
+            assert_eq!(tree.focus, home, "Tab order must survive translation");
             accessible_frame(
                 &ctx,
                 &mut app,
@@ -1748,7 +1753,19 @@ mod tests {
             assert!(app.manual_queue.is_empty());
             assert_eq!(app.queue.get().unwrap().queue, rows[2..]);
             let tree = accessible_frame(&ctx, &mut app, vec![]);
-            let recent = accessible_node(&tree, &gettext(locale, "Recent"), Role::Button);
+            // The queue panel's tab, on the right: some languages give the
+            // sidebar's "Recently played" order the same words.
+            let label = gettext(locale, "Recent");
+            let recent = tree
+                .nodes
+                .iter()
+                .find(|(_, node)| {
+                    node.label() == Some(label.as_ref())
+                        && node.role() == Role::Button
+                        && node.bounds().is_some_and(|bounds| bounds.x0 > 640.0)
+                })
+                .expect("the queue's Recent tab")
+                .0;
             accessible_frame(
                 &ctx,
                 &mut app,
@@ -2488,6 +2505,8 @@ mod tests {
         use egui::accesskit::Role;
         let (ctx, mut app) = accessible_app("library-grid-drop-highlight");
         app.settings.sidebar_grid = true;
+        // The first frame settles the sidebar's layout.
+        accessible_frame(&ctx, &mut app, vec![]);
         let tree = accessible_frame(&ctx, &mut app, vec![]);
         let liked = tree
             .nodes
@@ -2814,7 +2833,8 @@ mod tests {
     fn clearing_the_global_search_stays_on_the_current_page() {
         use egui::accesskit::{Action as AccessibleAction, Role};
         let (ctx, mut app) = accessible_app("global-search-clear");
-        app.open(Page::Home);
+        // Home searches in its own box; any other page has the sidebar's.
+        app.open(Page::Playlist("pl1".into()));
         accessible_frame(&ctx, &mut app, vec![]);
         let tree = accessible_frame(&ctx, &mut app, vec![]);
         assert!(!app.search.query.is_empty());
@@ -2838,7 +2858,7 @@ mod tests {
         }
         assert!(app.search.query.is_empty());
         assert!(
-            matches!(app.page(), Page::Home),
+            matches!(app.page(), Page::Playlist(_)),
             "clearing must not open the search page"
         );
         assert!(
@@ -2850,6 +2870,184 @@ mod tests {
         accessible_frame(&ctx, &mut app, vec![]);
         assert_eq!(app.search.query, "Rework");
         assert!(matches!(app.page(), Page::Search));
+        app.backend.shutdown();
+    }
+
+    /// Home searches in its own box: typing there stays on Home, Enter
+    /// searches at once with the results under the box, Ctrl+F focuses the
+    /// box, and the sidebar has no search field while Home is shown.
+    #[test]
+    fn home_search_box_searches_on_home() {
+        use egui::accesskit::{Action as AccessibleAction, Role};
+        let (ctx, mut app) = accessible_app("home-search-box");
+        app.search.query.clear();
+        app.open(Page::Home);
+        accessible_frame(&ctx, &mut app, vec![]);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        assert!(
+            ctx.read_response(egui::Id::new("global-search")).is_none(),
+            "Home has no sidebar search"
+        );
+        let field = accessible_node(&tree, "What do you want to play?", Role::TextInput);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![accessible_action(field, AccessibleAction::Focus, None)],
+        );
+        accessible_frame(&ctx, &mut app, vec![egui::Event::Text("Rework".into())]);
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(app.search.query, "Rework");
+        assert!(matches!(app.page(), Page::Home), "typing stays on Home");
+        assert!(
+            app.search.typed_at.is_some(),
+            "typing searches after a pause"
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Enter, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(app.search.committed, "Rework", "Enter searches at once");
+        assert!(matches!(app.page(), Page::Home), "the results stay on Home");
+        assert!(ctx.read_response(egui::Id::new("global-search")).is_none());
+
+        // Ctrl+F on Home focuses the box rather than opening the search page.
+        app.actions.push(Action::FocusSearch);
+        for _ in 0..2 {
+            accessible_frame(&ctx, &mut app, vec![]);
+        }
+        assert!(matches!(app.page(), Page::Home));
+        assert!(ctx.memory(|memory| memory.has_focus(egui::Id::new("home-search"))));
+
+        // A search made elsewhere leaves Home's box empty and its shelves shown.
+        app.actions.push(Action::Search("Bonobo".into()));
+        accessible_frame(&ctx, &mut app, vec![]);
+        app.open(Page::Home);
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert!(!app.search.from_home);
+        assert_eq!(crate::ui::page_label(&app).1, "Home");
+        app.backend.shutdown();
+    }
+
+    /// A click on Home's greeting opens it for editing: Enter keeps the new
+    /// words, Escape drops an edit, and a blank greeting goes back to the
+    /// one by time of day.
+    #[test]
+    fn home_greeting_is_edited_in_place() {
+        use egui::accesskit::{Action as AccessibleAction, Role};
+        let (ctx, mut app) = accessible_app("home-greeting");
+        app.settings.home.greeting = None;
+        app.open(Page::Home);
+        accessible_frame(&ctx, &mut app, vec![]);
+        let edit = |ctx: &egui::Context, app: &mut App| {
+            let tree = accessible_frame(ctx, app, vec![]);
+            let button = accessible_node(&tree, "Edit greeting", Role::Button);
+            accessible_frame(
+                ctx,
+                app,
+                vec![accessible_action(button, AccessibleAction::Click, None)],
+            );
+            for _ in 0..2 {
+                accessible_frame(ctx, app, vec![]);
+            }
+            assert!(
+                ctx.memory(|memory| memory.has_focus(egui::Id::new("home-greeting"))),
+                "the click focuses the greeting's field"
+            );
+        };
+
+        edit(&ctx, &mut app);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![egui::Event::Text("  Hi   there ".into())],
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Enter, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(app.settings.home.greeting.as_deref(), Some("Hi there"));
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        accessible_node(&tree, "Edit greeting", Role::Button);
+
+        edit(&ctx, &mut app);
+        accessible_frame(&ctx, &mut app, vec![egui::Event::Text(" friend".into())]);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Escape, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(
+            app.settings.home.greeting.as_deref(),
+            Some("Hi there"),
+            "Escape drops the edit"
+        );
+        assert!(matches!(app.page(), Page::Home));
+
+        edit(&ctx, &mut app);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::A, egui::Modifiers::COMMAND)],
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Backspace, egui::Modifiers::NONE)],
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![keyboard(egui::Key::Enter, egui::Modifiers::NONE)],
+        );
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(
+            app.settings.home.greeting, None,
+            "blank restores the default"
+        );
+        app.backend.shutdown();
+    }
+
+    /// The Ninetale wordmark takes the sidebar search field's place on Home,
+    /// where Home's own box does the searching, and nowhere else.
+    #[test]
+    fn the_wordmark_shows_on_home_only() {
+        use egui::accesskit::Role;
+        let (ctx, mut app) = accessible_app("wordmark");
+        let has_wordmark = |tree: &egui::accesskit::TreeUpdate| {
+            tree.nodes
+                .iter()
+                .any(|(_, node)| node.label() == Some("Ninetale") && node.role() == Role::Image)
+        };
+        app.open(Page::Home);
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert!(has_wordmark(&accessible_frame(&ctx, &mut app, vec![])));
+        app.open(Page::Playlist("pl1".into()));
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert!(!has_wordmark(&accessible_frame(&ctx, &mut app, vec![])));
+        app.backend.shutdown();
+    }
+
+    /// The top bar names the shown page in its pill, by the item's own name.
+    #[test]
+    fn the_page_pill_names_the_page() {
+        let (ctx, mut app) = accessible_app("page-pill");
+        app.open(Page::Playlist("pl1".into()));
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(
+            crate::ui::page_label(&app),
+            (
+                crate::theme::Icon::ListMusic,
+                "Late night focus".to_string()
+            )
+        );
+        app.open(Page::Home);
+        assert_eq!(crate::ui::page_label(&app).1, "Home");
+        assert!(ctx.read_response(egui::Id::new("page-pill")).is_some());
         app.backend.shutdown();
     }
 
@@ -4569,8 +4767,8 @@ mod tests {
             output.textures_delta.clear();
         };
         draw(&mut app, vec![]);
-        // The margin at the bar's left edge, beside the cover.
-        let empty = egui::pos2(6.0, 796.0);
+        // The card's own padding, just below the cover.
+        let empty = egui::pos2(40.0, 782.0);
         draw(&mut app, pointer_click(empty, egui::PointerButton::Primary));
         assert!(
             app.actions
@@ -4633,8 +4831,8 @@ mod tests {
         };
         let tip = "Click to change the visualizer";
 
-        // #given the tooltip shown over the empty margin beside the cover
-        let empty = egui::pos2(6.0, 796.0);
+        // #given the tooltip shown over the card's empty padding below the cover
+        let empty = egui::pos2(40.0, 782.0);
         for _ in 0..3 {
             draw(&mut app, empty);
         }
@@ -5479,6 +5677,15 @@ mod tests {
             [Action::Open(Page::LikedSongs)]
         ));
         app.backend.shutdown();
+    }
+
+    /// The centre of the player's cover, where a drag of the playing song
+    /// starts, as the last frame placed it.
+    fn now_playing_cover(ctx: &egui::Context) -> egui::Pos2 {
+        ctx.read_response(egui::Id::new("now-playing-cover"))
+            .expect("the player's cover")
+            .rect
+            .center()
     }
 
     fn frame_events(ctx: &egui::Context, app: &mut App, events: Vec<egui::Event>) {
@@ -6832,7 +7039,7 @@ mod tests {
             frame(&ctx, &mut app);
         }
 
-        let start = egui::pos2(40.0, 755.0);
+        let start = now_playing_cover(&ctx);
         frame_events(
             &ctx,
             &mut app,
@@ -6906,7 +7113,7 @@ mod tests {
 
         // Drag the now-playing song from the bottom-left player, same
         // starting point as the equivalent playlist-insert test.
-        let start = egui::pos2(40.0, 755.0);
+        let start = now_playing_cover(&ctx);
         frame_events(
             &ctx,
             &mut app,
@@ -6976,7 +7183,7 @@ mod tests {
         // close/save buttons and tab chips.
         let end = egui::pos2(1100.0, 300.0);
 
-        let start = egui::pos2(40.0, 755.0);
+        let start = now_playing_cover(&ctx);
         frame_events(
             &ctx,
             &mut app,
@@ -7404,7 +7611,8 @@ mod tests {
             &mut app,
             vec![egui::Event::PointerMoved(egui::pos2(
                 start.x,
-                800.0 - crate::theme::PLAYER_BAR_HEIGHT - 14.0,
+                // The panel runs to the window's bottom, beside the player.
+                800.0 - 14.0,
             ))],
         );
         for _ in 0..400 {
@@ -7514,7 +7722,7 @@ mod tests {
         let button = bounds_of(button);
 
         let drag_to = |app: &mut App, end: egui::Pos2| {
-            let start = egui::pos2(40.0, 755.0);
+            let start = now_playing_cover(&ctx);
             frame_events(
                 &ctx,
                 app,
@@ -7605,7 +7813,7 @@ mod tests {
         let target_row = row_rect("Queued 1");
         let end = egui::pos2(target_row.left() + 130.0, target_row.top() + 1.0);
 
-        let start = egui::pos2(40.0, 755.0);
+        let start = now_playing_cover(&ctx);
         frame_events(
             &ctx,
             &mut app,
@@ -7683,7 +7891,7 @@ mod tests {
         // still appends at the end, ignoring the row it landed on.
         let end = egui::pos2(bounds.x0 as f32 + 130.0, bounds.y0 as f32 + 2.0);
 
-        let start = egui::pos2(40.0, 755.0);
+        let start = now_playing_cover(&ctx);
         frame_events(
             &ctx,
             &mut app,
@@ -8019,7 +8227,7 @@ mod tests {
             let tree = accessible_frame(&ctx, &mut app, vec![]);
             let target = row(&tree, "Liked Songs").center();
             app.saved.insert("spotify:track:trk0".into(), false);
-            let source = egui::pos2(40.0, 755.0);
+            let source = now_playing_cover(&ctx);
             accessible_frame(
                 &ctx,
                 &mut app,
@@ -8124,7 +8332,7 @@ mod tests {
                         let row = row_rect(source_item.name());
                         egui::pos2(row.left() + 80.0, row.center().y)
                     } else {
-                        egui::pos2(40.0, 755.0)
+                        now_playing_cover(&ctx)
                     };
                     let row = row_rect(&format!("Destination {}", position.min(3)));
                     let end = egui::pos2(
@@ -8582,10 +8790,8 @@ mod tests {
             accessible_frame(
                 &ctx,
                 &mut app,
-                vec![egui::Event::PointerMoved(egui::pos2(
-                    112.0,
-                    800.0 - crate::theme::PLAYER_BAR_HEIGHT - 14.0,
-                ))],
+                // The sidebar runs to the window's bottom edge.
+                vec![egui::Event::PointerMoved(egui::pos2(112.0, 800.0 - 14.0))],
             );
             for _ in 0..400 {
                 accessible_frame(&ctx, &mut app, vec![]);
@@ -8972,20 +9178,27 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 
-    /// The badges at the right end of the top bar sit in a right-to-left
+    /// The badge at the right end of the top bar sits in a right-to-left
     /// layout, which does not wrap and does not clip: anything that does not
-    /// fit marches left over the search field. Draw the real bar and check
-    /// that it never does.
+    /// fit marches left over the page's pill, or over the search field the
+    /// bar takes back while the sidebar is hidden. Draw the real bar and
+    /// check that it never does. Where playback is lives in the player now.
     #[test]
     fn the_top_bar_badges_never_cover_the_search_field() {
         use crate::updates::{DownloadState, Installation, Kind, Prepared};
         use egui::accesskit::{Action as AccessibleAction, Role};
-        // `widgets::search_field` insets its text this far from the pill's
-        // right edge, so the pill reaches past the rect the field reports.
+        // `widgets::search_field` insets its text this far from the well's
+        // right edge, so the well reaches past the rect the field reports.
         const FIELD_RIGHT_INSET: f32 = 30.0;
         let (ctx, mut app) = accessible_app("topbar-badges");
         app.open(Page::Playlist("pl1".into()));
-        for panel in [None, Some("queue"), Some("lyrics")] {
+        for (sidebar, panel) in [
+            (true, None),
+            (true, Some("queue")),
+            (true, Some("lyrics")),
+            (false, None),
+        ] {
+            app.settings.sidebar_visible = sidebar;
             app.show_queue_panel = panel == Some("queue");
             app.show_lyrics_panel = panel == Some("lyrics");
             for (label, state) in [
@@ -9057,19 +9270,30 @@ mod tests {
                             .and_then(|(_, node)| node.bounds())
                             .map(|bounds| bounds.x0 as f32)
                     };
-                    let field = ctx
-                        .read_response(egui::Id::new("global-search"))
-                        .expect("the search field")
-                        .rect
-                        .right()
-                        + FIELD_RIGHT_INSET;
-                    // Collapsed to an icon a badge keeps its label for a screen
-                    // reader, so it is found at every width.
-                    let device = badge("Playing on").expect("the device badge");
+                    let field = if sidebar {
+                        ctx.read_response(egui::Id::new("page-pill"))
+                            .expect("the page's pill")
+                            .rect
+                            .right()
+                    } else {
+                        ctx.read_response(egui::Id::new("global-search"))
+                            .expect("the search field")
+                            .rect
+                            .right()
+                            + FIELD_RIGHT_INSET
+                    };
+                    let device = tree
+                        .nodes
+                        .iter()
+                        .find(|(_, node)| {
+                            node.role() == Role::Button
+                                && node.label() == Some("Connect to a device")
+                        })
+                        .and_then(|(_, node)| node.bounds())
+                        .expect("the device chip");
                     assert!(
-                        device >= field,
-                        "the device badge covers {} px of the search field at {width} px",
-                        field - device
+                        device.y0 as f32 >= 620.0 - crate::theme::PLAYER_BAR_HEIGHT,
+                        "the device chip belongs to the player at {width} px"
                     );
                     if let Some(label) = label {
                         let release = badge(label).expect("the update badge");
@@ -9110,6 +9334,7 @@ mod tests {
     }
     #[test]
     fn side_panels_keep_their_full_height_beside_the_page_toolbar() {
+        let mut spans = 0;
         for theme in ["dark", "light"] {
             let (ctx, mut app) = accessible_app(&format!("full-height-panels-{theme}"));
             app.open(Page::Playlist("pl1".into()));
@@ -9146,13 +9371,37 @@ mod tests {
                     let player = rect("player-bar");
                     assert_eq!(side.top(), library.top(), "{panel} at {width} in {theme}");
                     assert_eq!(side.top(), 0.0, "{panel} must start at the window top");
-                    assert_eq!(side.bottom(), player.top());
+                    let page = side.left() - library.right();
+                    if crate::ui::player_bar::fits_under(page) {
+                        // The sidebar and the panel run the window's full
+                        // height, and the player floats under the page
+                        // between them, so the panel never ends just above
+                        // the player.
+                        assert_eq!(side.bottom(), 800.0, "{panel} at {width} in {theme}");
+                        assert_eq!(library.bottom(), 800.0, "{panel} at {width} in {theme}");
+                        assert_eq!(player.left(), library.right());
+                        assert_eq!(player.right(), side.left(), "{panel} at {width} in {theme}");
+                    } else {
+                        spans += 1;
+                        // A page too narrow for the player's controls gives
+                        // the player the window's width, under both panels.
+                        assert_eq!(player.left(), 0.0, "{panel} at {width} in {theme}");
+                        assert_eq!(player.right(), width, "{panel} at {width} in {theme}");
+                        assert_eq!(side.bottom(), player.top(), "{panel} at {width}");
+                        assert_eq!(library.bottom(), player.top(), "{panel} at {width}");
+                    }
                     let search = ctx.read_response(egui::Id::new("global-search")).unwrap();
                     assert!(side.top() < search.rect.top());
+                    assert!(
+                        library.contains_rect(search.rect),
+                        "search lives in the sidebar"
+                    );
                 }
             }
             app.backend.shutdown();
         }
+        // Both layouts are covered: 2 themes, 2 panels and 3 widths.
+        assert!((1..12).contains(&spans), "{spans} of 12 spanned");
     }
 
     /// #644: Go to song radio from a list names the radio after the song

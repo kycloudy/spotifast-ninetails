@@ -31,6 +31,13 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         app.actions.push(Action::SetSearchFilter(filter));
     }
     ui.add_space(12.0);
+    results(app, ui);
+}
+
+/// The current search's results in the chosen scope, under whatever chose
+/// it: the search page's chips, or Home's search box.
+pub fn results(app: &mut App, ui: &mut egui::Ui) {
+    let palette = app.palette;
     let pending = app.search.catalogue_pending || app.search.playlists_pending;
     if pending {
         widgets::loading_row(ui, &palette, app.locale);
@@ -384,9 +391,9 @@ fn top_result(
                 &mut child,
                 Icon::PlayFilled,
                 48.0,
-                palette.accent,
-                palette.accent_hover,
-                palette.on_accent,
+                palette.solid(),
+                palette.solid_hover(),
+                palette.on_solid(),
                 &gettext(app.locale, "Play"),
             )
             .clicked()

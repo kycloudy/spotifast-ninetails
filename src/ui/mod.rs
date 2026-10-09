@@ -10,6 +10,7 @@ pub mod home;
 mod keys;
 pub mod library;
 pub mod login;
+mod logo;
 mod lyrics;
 pub mod player_bar;
 pub mod queue;
@@ -62,10 +63,20 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ),
         );
     }
-    player_bar::show(app, ui);
-    if app.lyrics_fullscreen.is_some() {
-        lyrics::fullscreen(app, ui);
-    } else {
+    // The sidebar and the panels beside the page run the window's full
+    // height, as Zeron's do; the player floats under the page alone. A page
+    // too narrow for the player's controls gives the card the window's
+    // width instead, under the panels. The page's width does not depend on
+    // where the card sits, so last frame's decides it.
+    let fullscreen_lyrics = app.lyrics_fullscreen.is_some();
+    let page_width = ctx
+        .data(|data| data.get_temp::<f32>(page_width_id()))
+        .unwrap_or(f32::INFINITY);
+    let card_spans = fullscreen_lyrics || !player_bar::fits_under(page_width);
+    if card_spans {
+        player_bar::show(app, ui);
+    }
+    if !fullscreen_lyrics {
         if app.settings.sidebar_visible {
             sidebar::show(app, ui);
         }
@@ -75,6 +86,13 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         if app.show_lyrics_panel {
             lyrics::side_panel(app, ui);
         }
+    }
+    if !card_spans {
+        player_bar::show(app, ui);
+    }
+    if fullscreen_lyrics {
+        lyrics::fullscreen(app, ui);
+    } else {
         central(app, ui);
         keep_room_for_panels(app, ctx);
     }
@@ -209,41 +227,118 @@ where
     }
 }
 
-fn page_tint(app: &mut App) -> Option<Color32> {
-    let page = app.page().clone();
-    let image = match &page {
+/// The page's own cover, at `target` width, when it has one.
+fn page_image(app: &App, page: &Page, target: u32) -> Option<String> {
+    match page {
         Page::Playlist(id) => app
             .playlist_pages
             .get(id)
             .and_then(|page| page.playlist.get())
             .or_else(|| app.known_playlist(id))
-            .and_then(|playlist| pick_image(&playlist.images, 64))
+            .and_then(|playlist| pick_image(&playlist.images, target))
             .map(str::to_string),
         Page::Album(id) => app
             .album_pages
             .get(id)
             .and_then(|page| page.album.get())
             .or_else(|| app.known_album(id))
-            .and_then(|album| pick_image(&album.images, 64))
+            .and_then(|album| pick_image(&album.images, target))
             .map(str::to_string),
         Page::Artist(id) => app
             .artist_pages
             .get(id)
             .and_then(|page| page.artist.get())
             .or_else(|| app.known_artist(id))
-            .and_then(|artist| pick_image(&artist.images, 64))
+            .and_then(|artist| pick_image(&artist.images, target))
             .map(str::to_string),
         Page::Show(id) => app
             .show_pages
             .get(id)
             .and_then(|page| page.show.get())
             .or_else(|| app.known_show(id))
-            .and_then(|show| pick_image(&show.images, 64))
+            .and_then(|show| pick_image(&show.images, target))
             .map(str::to_string),
-        Page::Radio(seed) => pick_image(&app.radio_images(seed), 64).map(str::to_string),
-        Page::LikedSongs => return Some(Color32::from_rgb(0x50, 0x38, 0xc8)),
+        Page::Radio(seed) => pick_image(&app.radio_images(seed), target).map(str::to_string),
         _ => None,
+    }
+}
+
+/// What the top bar's pill calls the shown page, with its icon.
+pub(crate) fn page_label(app: &App) -> (Icon, String) {
+    use crate::i18n::gettext;
+    let locale = app.locale;
+    let named = |name: Option<&str>, fallback: std::borrow::Cow<'_, str>| {
+        name.filter(|name| !name.is_empty())
+            .map_or_else(|| fallback.into_owned(), str::to_owned)
     };
+    match app.page() {
+        Page::Home => (Icon::House, gettext(locale, "Home").into_owned()),
+        Page::Search => (Icon::Search, gettext(locale, "Search").into_owned()),
+        Page::TopSongs => (
+            Icon::TrendingUp,
+            gettext(locale, "Your top songs").into_owned(),
+        ),
+        Page::LikedSongs => (Icon::Heart, gettext(locale, "Liked Songs").into_owned()),
+        Page::Albums => (Icon::Disc, gettext(locale, "Albums").into_owned()),
+        Page::Artists => (Icon::Users, gettext(locale, "Artists").into_owned()),
+        Page::Podcasts => (Icon::Headphones, gettext(locale, "Podcasts").into_owned()),
+        Page::Episodes => (Icon::Bookmark, gettext(locale, "Episodes").into_owned()),
+        Page::Playlist(id) => (
+            Icon::ListMusic,
+            named(
+                app.playlist_pages
+                    .get(id)
+                    .and_then(|page| page.playlist.get())
+                    .or_else(|| app.known_playlist(id))
+                    .map(|playlist| playlist.name.as_str()),
+                gettext(locale, "Playlist"),
+            ),
+        ),
+        Page::Album(id) => (
+            Icon::Disc,
+            named(
+                app.album_pages
+                    .get(id)
+                    .and_then(|page| page.album.get())
+                    .or_else(|| app.known_album(id))
+                    .map(|album| album.name.as_str()),
+                gettext(locale, "Album"),
+            ),
+        ),
+        Page::Artist(id) => (
+            Icon::User,
+            named(
+                app.artist_pages
+                    .get(id)
+                    .and_then(|page| page.artist.get())
+                    .or_else(|| app.known_artist(id))
+                    .map(|artist| artist.name.as_str()),
+                gettext(locale, "Artist"),
+            ),
+        ),
+        Page::Show(id) => (
+            Icon::Headphones,
+            named(
+                app.show_pages
+                    .get(id)
+                    .and_then(|page| page.show.get())
+                    .or_else(|| app.known_show(id))
+                    .map(|show| show.name.as_str()),
+                gettext(locale, "Podcast"),
+            ),
+        ),
+        Page::Radio(_) => (Icon::Radio, gettext(locale, "Radio").into_owned()),
+        Page::Queue => (Icon::ListVideo, gettext(locale, "Queue").into_owned()),
+        Page::Settings => (Icon::Settings, gettext(locale, "Settings").into_owned()),
+    }
+}
+
+fn page_tint(app: &mut App) -> Option<Color32> {
+    let page = app.page().clone();
+    if page == Page::LikedSongs {
+        return Some(Color32::from_rgb(0x50, 0x38, 0xc8));
+    }
+    let image = page_image(app, &page, 64);
     if !app.settings.accent_from_art && image.is_some() {
         return None;
     }
@@ -253,30 +348,100 @@ fn page_tint(app: &mut App) -> Option<Color32> {
     }
 }
 
+/// The art dithered behind the page's header: its own cover, else the
+/// playing song's. None when art colours are off or the dither is.
+fn page_dither_art(app: &App) -> Option<String> {
+    if !app.settings.dither_headers || !app.settings.accent_from_art {
+        return None;
+    }
+    page_image(app, app.page(), 640).or_else(|| {
+        let now = app.now_playing()?;
+        now.art_url.or(now.art_small)
+    })
+}
+
+/// The page's width, kept for the next frame's player card.
+fn page_width_id() -> Id {
+    Id::new("page-width")
+}
+
 fn central(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let tint = page_tint(app);
+    let dither_art = page_dither_art(app);
     egui::CentralPanel::default()
         .frame(Frame::new().fill(palette.window))
         .show(ui, |ui| {
             let rect = ui.max_rect();
+            if ui.ctx().data(|data| data.get_temp::<f32>(page_width_id())) != Some(rect.width()) {
+                ui.ctx()
+                    .data_mut(|data| data.insert_temp(page_width_id(), rect.width()));
+                ui.ctx().request_repaint();
+            }
+            // Home's search box sits inside the art, as Zeron's composer
+            // sits in its wallpaper, so Home's dither runs deeper and bolder.
+            let home = matches!(app.page(), Page::Home);
+            let header_height = if home { 420.0 } else { 340.0 };
+            let header = Rect::from_min_size(rect.min, vec2(rect.width(), header_height));
+            let quiet = matches!(
+                app.page(),
+                Page::Home | Page::Search | Page::Settings | Page::Queue
+            );
             if let Some(tint) = tint {
-                let strength = if matches!(
-                    app.page(),
-                    Page::Home | Page::Search | Page::Settings | Page::Queue
-                ) {
-                    0.45
-                } else {
-                    0.85
-                };
+                let strength = if quiet { 0.45 } else { 0.85 };
                 let top = blend(palette.window, tint, strength);
-                let header = Rect::from_min_size(rect.min, vec2(rect.width(), 340.0));
                 widgets::paint_vertical_gradient(ui, header, top, palette.window);
+            }
+            // The dots sit over the tint, softer on pages whose header is
+            // only text, so titles stay easy to read.
+            let strength = if home {
+                0.34
+            } else if quiet {
+                0.26
+            } else {
+                0.36
+            };
+            // The art stays put while the page scrolls, so it fades as the
+            // header leaves and scrolled rows sit on the plain background.
+            let scroll_key = Id::new("page-scrolled").with(app.page().encode());
+            let scrolled = ui
+                .ctx()
+                .data(|data| data.get_temp::<f32>(scroll_key))
+                .unwrap_or(0.0);
+            let opacity = dither_opacity(scrolled);
+            let loader = app.backend.art().clone();
+            app.dither_hero.paint(
+                ui,
+                &loader,
+                dither_art.as_deref(),
+                header,
+                crate::dither::Look {
+                    dark: palette.dark,
+                    strength,
+                    opacity,
+                },
+            );
+            if dither_art.is_some() && opacity > 0.0 {
+                // A soft shade keeps the top bar's controls readable over
+                // bright art.
+                let shade = Rect::from_min_size(
+                    rect.min,
+                    vec2(
+                        rect.width(),
+                        theme::TOP_BAR_HEIGHT + theme::titlebar_inset(ui.ctx()) + 20.0,
+                    ),
+                );
+                widgets::paint_vertical_gradient(
+                    ui,
+                    shade,
+                    palette.window.gamma_multiply(0.7 * opacity),
+                    egui::Color32::TRANSPARENT,
+                );
             }
             ui.spacing_mut().item_spacing = vec2(8.0, 6.0);
             // egui fades a scrolled page's edge into the panel's plain
             // colour, which shows as a pale band over a cover's tint; the
-            // page casts a shadow under the header instead.
+            // page meets the header with a plain edge instead.
             ui.spacing_mut().scroll.fade.strength = 0.0;
             topbar::show(app, ui);
             let page = app.page().clone();
@@ -315,27 +480,27 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                         });
                 },
             );
-            header_shadow(ui, scroll.inner_rect, scroll.state.offset.y, palette.dark);
+            let offset = scroll.state.offset.y;
+            if (offset - scrolled).abs() > 0.5 {
+                ui.ctx()
+                    .data_mut(|data| data.insert_temp(scroll_key, offset));
+                ui.ctx().request_repaint();
+            }
+            if home {
+                home::next_up_pill(app, ui, scroll.inner_rect);
+            }
         });
 }
 
-/// The shadow the header casts on a page scrolled under it, deepening over
-/// the first few points of scrolling. Dark in both themes, lighter over a
-/// light page.
-fn header_shadow(ui: &egui::Ui, page: Rect, scrolled: f32, dark: bool) {
-    let depth = (scrolled / 24.0).clamp(0.0, 1.0);
-    if depth <= 0.0 {
-        return;
-    }
-    let strength = if dark { 110.0 } else { 36.0 };
-    let rect = Rect::from_min_size(page.min, vec2(page.width(), 14.0));
-    widgets::paint_vertical_gradient(
-        ui,
-        rect,
-        egui::Color32::from_black_alpha((strength * depth) as u8),
-        egui::Color32::TRANSPARENT,
-    );
+/// How much of the header's dither shows with the page scrolled this far:
+/// all of it at the top, none once the header has scrolled away.
+fn dither_opacity(scrolled: f32) -> f32 {
+    let t = 1.0 - (scrolled / DITHER_SCROLL_FADE).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
+
+/// How far the page scrolls before the header's dither has faded out.
+const DITHER_SCROLL_FADE: f32 = 260.0;
 
 /// Makes `rect` drag the borderless window. Register it before child widgets so
 /// they keep their clicks.
@@ -729,39 +894,17 @@ mod window_chrome_tests {
 mod tests {
     use super::*;
 
-    /// The header casts a shadow only on a page scrolled under it, and it
-    /// is black in both themes, never the page's own colour.
+    /// The header's art stays put while the page scrolls, so it fades out
+    /// as the header leaves rather than sit behind the scrolled rows.
     #[test]
-    fn the_header_shadow_appears_once_the_page_scrolls() {
-        let ctx = egui::Context::default();
-        let page = Rect::from_min_size(egui::pos2(0.0, 80.0), vec2(800.0, 600.0));
-        let shadows = |scrolled: f32, dark: bool| {
-            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
-                header_shadow(ui, page, scrolled, dark);
-            });
-            output.textures_delta.clear();
-            output
-                .shapes
-                .iter()
-                .filter_map(|shape| match &shape.shape {
-                    egui::Shape::Mesh(mesh) => Some(mesh.vertices.clone()),
-                    _ => None,
-                })
-                .flatten()
-                .collect::<Vec<_>>()
-        };
+    fn the_dither_fades_out_as_the_page_scrolls() {
+        assert_eq!(dither_opacity(0.0), 1.0);
+        assert!(dither_opacity(DITHER_SCROLL_FADE / 2.0) < 1.0);
+        assert!(dither_opacity(DITHER_SCROLL_FADE / 2.0) > 0.0);
         assert!(
-            shadows(0.0, true).is_empty(),
-            "nothing at the top of the page"
+            dither_opacity(DITHER_SCROLL_FADE / 4.0) > dither_opacity(DITHER_SCROLL_FADE / 2.0)
         );
-        for dark in [true, false] {
-            let vertices = shadows(40.0, dark);
-            let top = vertices
-                .iter()
-                .find(|vertex| vertex.pos.y == page.top())
-                .expect("a shadow along the page's top edge");
-            assert!(top.color.a() > 0);
-            assert_eq!((top.color.r(), top.color.g(), top.color.b()), (0, 0, 0));
-        }
+        assert_eq!(dither_opacity(DITHER_SCROLL_FADE), 0.0);
+        assert_eq!(dither_opacity(DITHER_SCROLL_FADE * 4.0), 0.0);
     }
 }
