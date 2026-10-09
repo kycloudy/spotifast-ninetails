@@ -7,6 +7,9 @@
 
 Based on Spotifast by Carmine Paolino. [MIT license](LICENSE).
 
+Automatic update checks and downloads use this fork's
+[GitHub releases](https://github.com/kycloudy/spotifast-ninetale/releases).
+
 The sidebar wordmark pauses while the window is unfocused and resumes from
 the same frame. Full-screen lyrics sit in a rounded, inset frame with a
 dithered background drawn from the playing song's cover.
