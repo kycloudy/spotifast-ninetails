@@ -289,9 +289,10 @@ pub(crate) fn global_search(app: &mut App, ui: &mut egui::Ui, width: f32, hint: 
     }
 }
 
-/// The same control and window position whether the sidebar is open or shut.
+/// Centres the toggle's icon on the sidebar Home row's icon.
 pub(crate) const SIDEBAR_TOGGLE_LEFT: f32 = 16.0;
 
+/// The same control and window position whether the sidebar is open or shut.
 pub(crate) fn sidebar_toggle(app: &mut App, ui: &mut egui::Ui) -> egui::Response {
     let (_, slot) = ui.allocate_space(Vec2::splat(NAV_SIZE));
     let center_y = ui.ctx().content_rect().top()
